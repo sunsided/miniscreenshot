@@ -43,7 +43,7 @@ miniscreenshot = "0.1"
 ```
 
 ```rust
-use miniscreenshot::{Screenshot, ImageFormat};
+use miniscreenshot::Screenshot;
 
 // Build from raw RGBA8 pixel data
 let data = vec![255u8, 0, 0, 255]; // 1×1 red pixel

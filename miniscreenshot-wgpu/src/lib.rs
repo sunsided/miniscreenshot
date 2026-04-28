@@ -168,7 +168,7 @@ pub fn capture_texture(
 fn padded_bytes_per_row(width: u32) -> u32 {
     let unpadded = width * 4;
     let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
-    (unpadded + align - 1) / align * align
+    unpadded.div_ceil(align) * align
 }
 
 #[cfg(test)]

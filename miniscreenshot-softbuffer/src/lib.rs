@@ -38,7 +38,7 @@ pub use miniscreenshot::{Screenshot, ScreenshotProvider};
 /// # Arguments
 ///
 /// * `pixels` – Pixel buffer as returned by `Buffer::deref()` / the slice
-///              you read from softbuffer. Length must equal `width × height`.
+///   you read from softbuffer. Length must equal `width × height`.
 /// * `width`  – Surface width in pixels.
 /// * `height` – Surface height in pixels.
 ///

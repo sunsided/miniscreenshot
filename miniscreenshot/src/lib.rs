@@ -77,7 +77,11 @@ impl Screenshot {
             (width as usize) * (height as usize) * 4,
             "RGBA8 data must be exactly width × height × 4 bytes"
         );
-        Self { width, height, data }
+        Self {
+            width,
+            height,
+            data,
+        }
     }
 
     /// Create a screenshot from raw **RGB8** pixel data, promoting to RGBA8
@@ -96,7 +100,11 @@ impl Screenshot {
             .chunks_exact(3)
             .flat_map(|rgb| [rgb[0], rgb[1], rgb[2], 255u8])
             .collect();
-        Self { width, height, data: rgba }
+        Self {
+            width,
+            height,
+            data: rgba,
+        }
     }
 
     /// Width of the screenshot in pixels.
@@ -168,9 +176,8 @@ impl Screenshot {
             Vec::with_capacity(header.len() + (self.width as usize) * (self.height as usize));
         buf.extend_from_slice(header.as_bytes());
         for pixel in self.data.chunks_exact(4) {
-            let gray = (0.299 * pixel[0] as f32
-                + 0.587 * pixel[1] as f32
-                + 0.114 * pixel[2] as f32) as u8;
+            let gray =
+                (0.299 * pixel[0] as f32 + 0.587 * pixel[1] as f32 + 0.114 * pixel[2] as f32) as u8;
             buf.push(gray);
         }
         buf
@@ -202,11 +209,7 @@ impl Screenshot {
     }
 
     /// Save the screenshot to `path` in the explicitly chosen `format`.
-    pub fn save_as<P: AsRef<Path>>(
-        &self,
-        path: P,
-        format: ImageFormat,
-    ) -> Result<(), SaveError> {
+    pub fn save_as<P: AsRef<Path>>(&self, path: P, format: ImageFormat) -> Result<(), SaveError> {
         let data = self.encode(format).map_err(SaveError::Encode)?;
         let mut file = std::fs::File::create(path).map_err(SaveError::Io)?;
         file.write_all(&data).map_err(SaveError::Io)?;

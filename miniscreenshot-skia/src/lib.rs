@@ -55,6 +55,11 @@ pub fn screenshot_from_surface(surface: &mut skia_safe::Surface) -> Screenshot {
         skia_safe::AlphaType::Premul,
         None,
     );
-    surface.read_pixels(&dst_info, &mut pixels, row_bytes, skia_safe::IPoint::new(0, 0));
+    surface.read_pixels(
+        &dst_info,
+        &mut pixels,
+        row_bytes,
+        skia_safe::IPoint::new(0, 0),
+    );
     Screenshot::from_rgba(width, height, pixels)
 }

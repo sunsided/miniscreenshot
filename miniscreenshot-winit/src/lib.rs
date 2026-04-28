@@ -1,13 +1,15 @@
 //! Screenshot integration for the [`winit`] windowing library.
 //!
 //! `winit` is a cross-platform windowing abstraction; it does not manage pixel
-//! buffers itself.  This crate re-exports `winit` (ensuring a single shared
-//! version across the workspace) and provides a thin [`WindowCapture`] wrapper
-//! that ties any [`ScreenshotProvider`] to a winit window.
+//! buffers itself. This crate re-exports `winit` (ensuring a single shared
+//! version across the workspace) and provides a thin [`WindowCapture`]
+//! wrapper around any [`ScreenshotProvider`].
 //!
-//! The actual pixel capture is performed by a companion rendering crate such
-//! as [`miniscreenshot-softbuffer`] or [`miniscreenshot-wgpu`]; this crate
-//! acts as the integration glue.
+//! [`WindowCapture`] itself is window-agnostic — it simply forwards to the
+//! wrapped provider. The companion rendering crate (e.g.
+//! [`miniscreenshot-softbuffer`] or [`miniscreenshot-wgpu`]) is responsible
+//! for binding the provider to a specific `winit::window::Window` and
+//! performing the actual pixel capture.
 //!
 //! # Re-export
 //!
@@ -24,7 +26,13 @@ pub use winit;
 
 pub use miniscreenshot::{Screenshot, ScreenshotProvider};
 
-/// Associates a screenshot provider with a winit window.
+/// Thin wrapper around any [`ScreenshotProvider`].
+///
+/// `WindowCapture` does not itself reference a `winit::window::Window`; it
+/// exists to provide a uniform capture API for applications that already own
+/// a winit window and a rendering-backend provider (e.g. softbuffer- or
+/// wgpu-backed). The wrapped provider is expected to know which window it
+/// reads pixels from.
 ///
 /// `P` can be any type that implements [`ScreenshotProvider`] — for example a
 /// softbuffer-backed or wgpu-backed capture implementation.

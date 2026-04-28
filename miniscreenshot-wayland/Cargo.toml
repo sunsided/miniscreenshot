@@ -14,3 +14,6 @@ wayland-client = "0.31"
 wayland-protocols-wlr = { version = "0.2", features = ["client"] }
 memmap2 = "0.9"
 libc = "0.2"
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+tempfile = "3"

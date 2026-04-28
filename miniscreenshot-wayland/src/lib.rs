@@ -2,7 +2,9 @@
 //!
 //! Supports wlroots-based compositors such as [Sway] and [Hyprland].
 //! On compositors that do not implement `zwlr_screencopy_manager_v1` this
-//! crate returns [`WaylandCaptureError::NoScreencopyManager`].
+//! crate returns [`WaylandCaptureError::NoScreencopyManager`]. If the
+//! compositor does not advertise `wl_shm`, [`WaylandCaptureError::NoShm`] is
+//! returned instead.
 //!
 //! Both `wayland-client` and `wayland-protocols-wlr` are re-exported so
 //! downstream consumers need not worry about version conflicts.
@@ -40,6 +42,7 @@ use wayland_protocols_wlr::screencopy::v1::client::{
 pub enum WaylandCaptureError {
     Connection(wayland_client::ConnectError),
     NoScreencopyManager,
+    NoShm,
     OutputNotFound(usize),
     CaptureFailed,
     Dispatch(wayland_client::DispatchError),
@@ -51,6 +54,7 @@ impl std::fmt::Display for WaylandCaptureError {
         match self {
             Self::Connection(e) => write!(f, "Wayland connection error: {e}"),
             Self::NoScreencopyManager => write!(f, "compositor lacks zwlr_screencopy_manager_v1"),
+            Self::NoShm => write!(f, "compositor lacks wl_shm"),
             Self::OutputNotFound(i) => write!(f, "output index {i} not found"),
             Self::CaptureFailed => write!(f, "compositor reported capture failure"),
             Self::Dispatch(e) => write!(f, "Wayland dispatch error: {e}"),
@@ -280,14 +284,10 @@ fn create_shm_file_impl(size: usize) -> std::io::Result<std::fs::File> {
 
 #[cfg(not(target_os = "linux"))]
 fn create_shm_file_impl(size: usize) -> std::io::Result<std::fs::File> {
-    // Create a temp file, unlink immediately, keep fd open.
-    let path = format!("/tmp/miniscreenshot_{}", std::process::id());
-    let file = std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .open(&path)?;
-    let _ = std::fs::remove_file(&path);
+    // Use the platform's atomic temp-file API (O_EXCL under the hood on Unix,
+    // `CreateFileA` with `FILE_FLAG_DELETE_ON_CLOSE` on Windows). Avoids
+    // predictable `/tmp` paths and symlink races.
+    let file = tempfile::tempfile()?;
     file.set_len(size as u64)?;
     Ok(file)
 }
@@ -315,6 +315,9 @@ impl WaylandCapture {
 
         if state.screencopy_manager.is_none() {
             return Err(WaylandCaptureError::NoScreencopyManager);
+        }
+        if state.shm.is_none() {
+            return Err(WaylandCaptureError::NoShm);
         }
         Ok(Self { event_queue, state })
     }

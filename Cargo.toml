@@ -1,0 +1,11 @@
+[workspace]
+members = [
+    "miniscreenshot",
+    "miniscreenshot-softbuffer",
+    "miniscreenshot-winit",
+    "miniscreenshot-wgpu",
+    "miniscreenshot-wayland",
+    "miniscreenshot-skia",
+    "miniscreenshot-vello",
+]
+resolver = "2"

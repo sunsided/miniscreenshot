@@ -86,3 +86,78 @@ tasks:
         msg: cargo is not installed. Please install Rust via https://rustup.rs
     cmds:
       - cargo doc --workspace --no-deps --all-features --open
+
+  examples:
+    desc: Build and run all headless examples
+    deps:
+      - examples:build
+    cmds:
+      - task: examples:core
+      - task: examples:softbuffer
+      - task: examples:wgpu
+      - task: examples:skia
+      - task: examples:vello
+
+  examples:build:
+    desc: Build all examples across the workspace (including feature-gated)
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo build --workspace --all-features --examples
+
+  examples:core:
+    desc: Run the miniscreenshot core scene example
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo run -p miniscreenshot --example core_scene_screenshot
+
+  examples:softbuffer:
+    desc: Run the miniscreenshot-softbuffer headless scene example
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo run -p miniscreenshot-softbuffer --example softbuffer_scene_screenshot
+
+  examples:winit:
+    desc: Run the miniscreenshot-winit window scene example (needs a display)
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo run -p miniscreenshot-winit --example winit_scene_screenshot
+
+  examples:wgpu:
+    desc: Run the miniscreenshot-wgpu headless scene example
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo run -p miniscreenshot-wgpu --example wgpu_scene_screenshot
+
+  examples:wayland:
+    desc: Run the miniscreenshot-wayland screen capture example (needs Wayland compositor)
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo run -p miniscreenshot-wayland --example wayland_scene_screenshot
+
+  examples:skia:
+    desc: Run the miniscreenshot-skia scene example (requires --features skia)
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo run -p miniscreenshot-skia --example skia_scene_screenshot --features skia
+
+  examples:vello:
+    desc: Run the miniscreenshot-vello scene example (requires --features vello)
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo run -p miniscreenshot-vello --example vello_scene_screenshot --features vello

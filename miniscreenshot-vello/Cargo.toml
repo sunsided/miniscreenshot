@@ -15,3 +15,7 @@ vello = { version = "0.2", optional = true }
 [features]
 default = []
 vello = ["dep:vello"]
+
+[dev-dependencies]
+pollster = "0.3"
+miniscreenshot-wgpu = { path = "../miniscreenshot-wgpu" }

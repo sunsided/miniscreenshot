@@ -154,6 +154,35 @@ miniscreenshot-vello = { version = "0.1", features = ["vello"] }
 
 ---
 
+## Examples
+
+Each crate ships with a self-contained `examples/<crate_short>_scene_screenshot.rs` that
+renders a scene (or synthesises a buffer) and saves a PNG.
+
+| Crate | Command | Headless? |
+|-------|---------|-----------|
+| `miniscreenshot` (core) | `cargo run -p miniscreenshot --example core_scene_screenshot` | Yes |
+| `miniscreenshot-softbuffer` | `cargo run -p miniscreenshot-softbuffer --example softbuffer_scene_screenshot` | Yes |
+| `miniscreenshot-winit` | `cargo run -p miniscreenshot-winit --example winit_scene_screenshot` | No (needs a display) |
+| `miniscreenshot-wgpu` | `cargo run -p miniscreenshot-wgpu --example wgpu_scene_screenshot` | Yes |
+| `miniscreenshot-wayland` | `cargo run -p miniscreenshot-wayland --example wayland_scene_screenshot` | No (needs Wayland compositor) |
+| `miniscreenshot-skia` | `cargo run -p miniscreenshot-skia --example skia_scene_screenshot --features skia` | Yes |
+| `miniscreenshot-vello` | `cargo run -p miniscreenshot-vello --example vello_scene_screenshot --features vello` | Yes |
+
+Build all examples at once:
+
+```bash
+task examples:build
+```
+
+Build and run all headless examples:
+
+```bash
+task examples
+```
+
+---
+
 ## License
 
 Licensed under either of [Apache License 2.0](LICENSE-APACHE) or

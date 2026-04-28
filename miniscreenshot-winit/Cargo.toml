@@ -11,3 +11,6 @@ categories = ["multimedia::images", "graphics"]
 [dependencies]
 miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }
 winit = "0.30"
+
+[dev-dependencies]
+miniscreenshot-softbuffer = { path = "../miniscreenshot-softbuffer" }

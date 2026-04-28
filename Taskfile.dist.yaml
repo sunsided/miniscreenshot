@@ -1,0 +1,88 @@
+# https://github.com/go-task/task
+version: "3"
+
+tasks:
+  fmt:
+    desc: Format the code
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo fmt
+
+  lint:
+    desc: Lint the code
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo clippy --workspace --all-targets -- -D warnings
+
+  lint:fix:
+    desc: Lint and auto-fix the code
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo clippy --workspace --all-targets --fix --allow-staged
+
+  test:
+    desc: Run all workspace tests
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo test --workspace
+
+  test:core:
+    desc: Run tests for the core miniscreenshot crate only
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo test -p miniscreenshot
+
+  build:
+    desc: Build the workspace
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    sources:
+      - Cargo.lock
+      - Cargo.toml
+      - miniscreenshot/Cargo.toml
+      - miniscreenshot-softbuffer/Cargo.toml
+      - miniscreenshot-winit/Cargo.toml
+      - miniscreenshot-wgpu/Cargo.toml
+      - miniscreenshot-wayland/Cargo.toml
+      - miniscreenshot-skia/Cargo.toml
+      - miniscreenshot-vello/Cargo.toml
+      - miniscreenshot/src/**/*.rs
+      - miniscreenshot-softbuffer/src/**/*.rs
+      - miniscreenshot-winit/src/**/*.rs
+      - miniscreenshot-wgpu/src/**/*.rs
+      - miniscreenshot-wayland/src/**/*.rs
+      - miniscreenshot-skia/src/**/*.rs
+      - miniscreenshot-vello/src/**/*.rs
+    cmds:
+      - cargo build --workspace
+
+  docs:
+    desc: Build rustdoc
+    aliases:
+      - doc
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo doc --workspace --no-deps --all-features
+
+  docs:open:
+    desc: Build rustdoc and open in browser
+    aliases:
+      - doc:open
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo doc --workspace --no-deps --all-features --open

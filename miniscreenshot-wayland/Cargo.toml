@@ -1,0 +1,19 @@
+[package]
+name = "miniscreenshot-wayland"
+version = "0.1.0"
+edition = "2021"
+description = "Wayland (wlr-screencopy-v1) screenshot helper for the miniscreenshot ecosystem."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/sunsided/miniscreenshot"
+keywords = ["screenshot", "wayland", "wlr-screencopy"]
+categories = ["multimedia::images", "graphics"]
+
+[dependencies]
+miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }
+wayland-client = "0.31"
+wayland-protocols-wlr = { version = "0.2", features = ["client"] }
+memmap2 = "0.9"
+libc = "0.2"
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+tempfile = "3"

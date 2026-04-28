@@ -2,10 +2,10 @@
 members = [
     "miniscreenshot",
     "miniscreenshot-softbuffer",
-    "miniscreenshot-winit",
     "miniscreenshot-wgpu",
     "miniscreenshot-wayland",
     "miniscreenshot-skia",
     "miniscreenshot-vello",
+    "miniscreenshot-x11",
 ]
 resolver = "2"

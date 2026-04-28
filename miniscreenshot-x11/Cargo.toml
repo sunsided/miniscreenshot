@@ -1,0 +1,20 @@
+[package]
+name = "miniscreenshot-x11"
+version = "0.1.0"
+edition = "2021"
+description = "X11 (XGetImage / MIT-SHM) screenshot helper for the miniscreenshot ecosystem."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/sunsided/miniscreenshot"
+keywords = ["screenshot", "x11", "xcb"]
+categories = ["multimedia::images", "graphics"]
+
+[dependencies]
+miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }
+# Pure-Rust X11 client; enable `allow-unsafe-code` so the optional SHM path
+# can mmap the shared segment. `shm` exposes the MIT-SHM extension protocol.
+x11rb = { version = "0.13", features = ["shm", "allow-unsafe-code"] }
+
+# memmap2 + libc are only needed for the SHM fast path on Linux-ish unixes.
+[target.'cfg(unix)'.dependencies]
+memmap2 = "0.9"
+libc = "0.2"

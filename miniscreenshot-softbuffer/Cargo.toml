@@ -11,3 +11,11 @@ categories = ["multimedia::images", "graphics"]
 [dependencies]
 miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }
 softbuffer = "0.4"
+winit = { version = "0.30", optional = true }
+
+[features]
+winit = ["dep:winit"]
+
+[[example]]
+name = "softbuffer_winit_scene_screenshot"
+required-features = ["winit"]

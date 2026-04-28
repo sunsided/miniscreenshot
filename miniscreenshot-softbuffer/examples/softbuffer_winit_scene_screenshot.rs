@@ -1,9 +1,9 @@
 use miniscreenshot_softbuffer::screenshot_from_xrgb;
 use miniscreenshot_softbuffer::softbuffer;
-use miniscreenshot_winit::winit::application::ApplicationHandler;
-use miniscreenshot_winit::winit::event::WindowEvent;
-use miniscreenshot_winit::winit::event_loop::{ActiveEventLoop, EventLoop};
-use miniscreenshot_winit::winit::window::Window;
+use miniscreenshot_softbuffer::winit::application::ApplicationHandler;
+use miniscreenshot_softbuffer::winit::event::WindowEvent;
+use miniscreenshot_softbuffer::winit::event_loop::{ActiveEventLoop, EventLoop};
+use miniscreenshot_softbuffer::winit::window::Window;
 use std::rc::Rc;
 
 struct App {
@@ -29,7 +29,7 @@ impl ApplicationHandler for App {
                 .create_window(
                     Window::default_attributes()
                         .with_inner_size(winit::dpi::LogicalSize::new(512, 384))
-                        .with_title("miniscreenshot-winit example"),
+                        .with_title("miniscreenshot-softbuffer + winit example"),
                 )
                 .expect("failed to create window"),
         );

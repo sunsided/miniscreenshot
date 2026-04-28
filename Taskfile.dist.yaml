@@ -52,18 +52,18 @@ tasks:
       - Cargo.toml
       - miniscreenshot/Cargo.toml
       - miniscreenshot-softbuffer/Cargo.toml
-      - miniscreenshot-winit/Cargo.toml
       - miniscreenshot-wgpu/Cargo.toml
       - miniscreenshot-wayland/Cargo.toml
       - miniscreenshot-skia/Cargo.toml
       - miniscreenshot-vello/Cargo.toml
+      - miniscreenshot-x11/Cargo.toml
       - miniscreenshot/src/**/*.rs
       - miniscreenshot-softbuffer/src/**/*.rs
-      - miniscreenshot-winit/src/**/*.rs
       - miniscreenshot-wgpu/src/**/*.rs
       - miniscreenshot-wayland/src/**/*.rs
       - miniscreenshot-skia/src/**/*.rs
       - miniscreenshot-vello/src/**/*.rs
+      - miniscreenshot-x11/src/**/*.rs
     cmds:
       - cargo build --workspace
 
@@ -94,6 +94,7 @@ tasks:
     cmds:
       - task: examples:core
       - task: examples:softbuffer
+      - task: examples:softbuffer:winit
       - task: examples:wgpu
       - task: examples:skia
       - task: examples:vello
@@ -122,13 +123,13 @@ tasks:
     cmds:
       - cargo run -p miniscreenshot-softbuffer --example softbuffer_scene_screenshot
 
-  examples:winit:
-    desc: Run the miniscreenshot-winit window scene example (needs a display)
+  examples:softbuffer:winit:
+    desc: Run the miniscreenshot-softbuffer winit scene example (needs a display)
     preconditions:
       - sh: command -v cargo >/dev/null 2>&1
         msg: cargo is not installed. Please install Rust via https://rustup.rs
     cmds:
-      - cargo run -p miniscreenshot-winit --example winit_scene_screenshot
+      - cargo run -p miniscreenshot-softbuffer --example softbuffer_winit_scene_screenshot --features winit
 
   examples:wgpu:
     desc: Run the miniscreenshot-wgpu headless scene example
@@ -139,12 +140,82 @@ tasks:
       - cargo run -p miniscreenshot-wgpu --example wgpu_scene_screenshot
 
   examples:wayland:
-    desc: Run the miniscreenshot-wayland screen capture example (needs Wayland compositor)
+    desc: "Run the miniscreenshot-wayland screen capture example (requires a wlroots-based Wayland compositor: Sway, Hyprland, weston, cage, ...)"
+    summary: |
+      Run the miniscreenshot-wayland screen capture example.
+
+      Requirements:
+        - An active Wayland session. The WAYLAND_DISPLAY environment variable
+          must be set and point to a running compositor socket (check with
+          `echo $WAYLAND_DISPLAY` and `echo $XDG_SESSION_TYPE`).
+        - The compositor must implement the wlr-screencopy-unstable-v1 protocol.
+          Supported compositors include wlroots-based ones (Sway, Hyprland,
+          river, Wayfire, cage) as well as weston.
+          GNOME/Mutter and KDE/KWin do NOT implement wlr-screencopy and will
+          not work with this example.
+
+      Common failures:
+
+      1) failed to connect to Wayland compositor: Connection(NoCompositor)
+         No Wayland socket was found. Typical causes:
+           - You are logged into an X11 session (XDG_SESSION_TYPE=x11). Log
+             out and pick a Wayland session, or use the workarounds below.
+           - WAYLAND_DISPLAY is unset or points to a stale socket.
+
+      2) failed to connect to Wayland compositor: NoScreencopyManager
+         A Wayland compositor was reached, but it does not implement the
+         wlr-screencopy-unstable-v1 protocol. This is expected on GNOME
+         (Mutter) and KDE (KWin) — they use the XDG Desktop Portal screencast
+         API instead and are not supported by this example. Switch to a
+         wlroots-based compositor or use a nested one (see below).
+
+      Workarounds for X11 sessions:
+        - Start a nested compositor for testing, e.g.:
+            weston &
+            WAYLAND_DISPLAY=wayland-1 task examples:wayland
+          (Use whichever WAYLAND_DISPLAY value weston prints.)
+        - Or run `cage -- task examples:wayland` to launch a single-app
+          Wayland session.
     preconditions:
       - sh: command -v cargo >/dev/null 2>&1
         msg: cargo is not installed. Please install Rust via https://rustup.rs
     cmds:
       - cargo run -p miniscreenshot-wayland --example wayland_scene_screenshot
+
+  examples:x11:
+    desc: "Run the miniscreenshot-x11 screen capture example (requires an X11 display: native X11, XWayland, Xephyr, or Xvfb)"
+    summary: |
+      Run the miniscreenshot-x11 screen capture example.
+
+      Requirements:
+        - A reachable X11 server. The DISPLAY environment variable must be set
+          and point to a running X server (check with `echo $DISPLAY`).
+        - Works under native X11, XWayland (e.g. `DISPLAY=:0` inside a Wayland
+          session), or a nested Xephyr/Xvfb server.
+        - When MIT-SHM is available, the fast-path shared-memory capture is used;
+          otherwise it falls back to a plain XGetImage transfer.
+
+      Common failures:
+
+      1) X11 connection error: DisplayParsingError
+         No DISPLAY variable was set, or the value is malformed. Make sure
+         `echo $DISPLAY` prints something like `:0` or `localhost:10.0`.
+
+      2) I/O error: Connection refused
+         The X server at the given DISPLAY is not running or unreachable.
+
+      Workarounds for headless CI:
+        - Start a virtual framebuffer and use it:
+            Xvfb :99 &
+            DISPLAY=:99 task examples:x11
+        - Or use Xephyr for a nested windowed X server:
+            Xephyr :1 -screen 1280x720 &
+            DISPLAY=:1 task examples:x11
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo run -p miniscreenshot-x11 --example x11_scene_screenshot
 
   examples:skia:
     desc: Run the miniscreenshot-skia scene example (requires --features skia)

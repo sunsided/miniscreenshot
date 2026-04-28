@@ -10,4 +10,4 @@ categories = ["multimedia::images", "graphics"]
 
 [dependencies]
 miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }
-wgpu = "0.20"
+wgpu = "29.0"

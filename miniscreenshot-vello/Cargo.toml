@@ -10,7 +10,7 @@ categories = ["multimedia::images", "graphics"]
 
 [dependencies]
 miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }
-vello = { version = "0.2", optional = true }
+vello = { version = "0.8", optional = true }
 
 [features]
 default = []

@@ -10,7 +10,7 @@ categories = ["multimedia::images", "graphics"]
 
 [dependencies]
 miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }
-skia-safe = { version = "0.73", optional = true }
+skia-safe = { version = "0.93", optional = true }
 
 [features]
 default = []

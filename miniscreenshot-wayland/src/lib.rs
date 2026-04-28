@@ -228,17 +228,15 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for AppState 
         };
         match event {
             zwlr_screencopy_frame_v1::Event::Buffer {
-                format,
+                format: WEnum::Value(fmt),
                 width,
                 height,
                 stride,
             } if frame.shm_format.is_none() => {
-                if let WEnum::Value(fmt) = format {
-                    frame.shm_format = Some(fmt);
-                    frame.width = width;
-                    frame.height = height;
-                    frame.stride = stride;
-                }
+                frame.shm_format = Some(fmt);
+                frame.width = width;
+                frame.height = height;
+                frame.stride = stride;
             }
             zwlr_screencopy_frame_v1::Event::BufferDone => {
                 frame.buffer_done = true;

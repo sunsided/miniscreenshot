@@ -274,7 +274,7 @@ tasks:
     cmds:
       - cargo run -p miniscreenshot-portal --example portal_scene_screenshot
 
-  examples:portal:async:
+   examples:portal:async:
     desc: "Run the miniscreenshot-portal async screen capture example (requires portal + tokio)"
     summary: |
       Run the miniscreenshot-portal async screen capture example.
@@ -286,3 +286,79 @@ tasks:
         msg: cargo is not installed. Please install Rust via https://rustup.rs
     cmds:
       - cargo run -p miniscreenshot-portal --example portal_async_scene_screenshot --features async
+
+  publish:dry:
+    desc: Run cargo publish --dry-run for all workspace crates
+    cmds:
+      - task: publish:core:dry
+      - task: publish:softbuffer:dry
+      - task: publish:wgpu:dry
+      - task: publish:wayland:dry
+      - task: publish:skia:dry
+      - task: publish:vello:dry
+      - task: publish:x11:dry
+      - task: publish:portal:dry
+
+  publish:core:dry:
+    desc: Run cargo publish --dry-run for miniscreenshot
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo publish --dry-run -p miniscreenshot
+
+  publish:softbuffer:dry:
+    desc: Run cargo publish --dry-run for miniscreenshot-softbuffer
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo publish --dry-run -p miniscreenshot-softbuffer
+
+  publish:wgpu:dry:
+    desc: Run cargo publish --dry-run for miniscreenshot-wgpu
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo publish --dry-run -p miniscreenshot-wgpu
+
+  publish:wayland:dry:
+    desc: Run cargo publish --dry-run for miniscreenshot-wayland
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo publish --dry-run -p miniscreenshot-wayland
+
+  publish:skia:dry:
+    desc: Run cargo publish --dry-run for miniscreenshot-skia
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo publish --dry-run -p miniscreenshot-skia
+
+  publish:vello:dry:
+    desc: Run cargo publish --dry-run for miniscreenshot-vello
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo publish --dry-run -p miniscreenshot-vello
+
+  publish:x11:dry:
+    desc: Run cargo publish --dry-run for miniscreenshot-x11
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo publish --dry-run -p miniscreenshot-x11
+
+  publish:portal:dry:
+    desc: Run cargo publish --dry-run for miniscreenshot-portal
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo publish --dry-run -p miniscreenshot-portal

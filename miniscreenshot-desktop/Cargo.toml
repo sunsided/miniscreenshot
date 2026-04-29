@@ -14,4 +14,4 @@ readme = "../README.md"
 miniscreenshot = { version = "0.2", path = "../miniscreenshot" }
 miniscreenshot-wayland = { version = "0.2", path = "../miniscreenshot-wayland" }
 miniscreenshot-x11 = { version = "0.2", path = "../miniscreenshot-x11" }
-miniscreenshot-portal = { version = "0.2", path = "../miniscreenshot-portal", default-features = false, features = ["blocking"] }
+miniscreenshot-portal = { version = "0.2", path = "../miniscreenshot-portal", default-features = false, features = ["blocking", "tokio"] }

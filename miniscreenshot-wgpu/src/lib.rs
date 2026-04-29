@@ -40,6 +40,9 @@ pub enum WgpuCaptureError {
 
     /// The staging buffer could not be mapped.
     MapFailed(wgpu::BufferAsyncError),
+
+    /// The device poll failed.
+    PollFailed(wgpu::PollError),
 }
 
 impl std::fmt::Display for WgpuCaptureError {
@@ -49,6 +52,7 @@ impl std::fmt::Display for WgpuCaptureError {
                 write!(f, "unsupported texture format for screenshot: {fmt:?}")
             }
             Self::MapFailed(e) => write!(f, "staging buffer map failed: {e}"),
+            Self::PollFailed(e) => write!(f, "device poll failed: {e}"),
         }
     }
 }
@@ -57,6 +61,7 @@ impl std::error::Error for WgpuCaptureError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::MapFailed(e) => Some(e),
+            Self::PollFailed(e) => Some(e),
             _ => None,
         }
     }
@@ -75,6 +80,11 @@ impl From<WgpuCaptureError> for CaptureError {
                 format!("staging buffer map failed: {e}"),
             )
             .with_source(WgpuCaptureError::MapFailed(e)),
+            WgpuCaptureError::PollFailed(e) => CaptureError::new(
+                miniscreenshot::CaptureErrorKind::Backend,
+                format!("device poll failed: {e}"),
+            )
+            .with_source(WgpuCaptureError::PollFailed(e)),
         }
     }
 }
@@ -190,7 +200,7 @@ pub fn capture(
     });
     device
         .poll(wgpu::PollType::wait_indefinitely())
-        .expect("device poll failed");
+        .map_err(WgpuCaptureError::PollFailed)?;
     rx.recv()
         .expect("map_async callback channel closed unexpectedly")
         .map_err(WgpuCaptureError::MapFailed)?;

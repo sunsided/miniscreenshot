@@ -52,6 +52,7 @@ pub use miniscreenshot::CaptureAsync;
 pub use miniscreenshot::{Capture, CaptureError, MultiCapture, Screenshot};
 
 use ashpd::desktop::screenshot::Screenshot as PortalScreenshot;
+use percent_encoding::percent_decode_str;
 use std::fs::File;
 use std::io::Read;
 
@@ -220,7 +221,18 @@ impl PortalCapture {
             return Err(PortalCaptureError::UnsupportedScheme(uri.to_string()));
         }
 
-        let path = std::path::Path::new(&uri_str["file://".len()..]);
+        // Parse file:// URI: file://host/path -> /path (host must be empty or "localhost")
+        let path_str = &uri_str["file://".len()..];
+        let path_str = match path_str.find('/') {
+            Some(pos) => &path_str[pos..],
+            None => {
+                return Err(PortalCaptureError::UnsupportedScheme(uri.to_string()));
+            }
+        };
+        let path = percent_decode_str(path_str).decode_utf8().map_err(|e| {
+            PortalCaptureError::UnsupportedScheme(format!("invalid path encoding: {e}"))
+        })?;
+        let path = std::path::Path::new(path.as_ref());
 
         let mut file = File::open(path).map_err(PortalCaptureError::Io)?;
         let mut buf = Vec::new();
@@ -231,7 +243,14 @@ impl PortalCapture {
             .read_info()
             .map_err(|e| PortalCaptureError::DecodePng(e.to_string()))?;
 
-        let mut img_data = vec![0u8; reader.output_buffer_size().expect("output_buffer_size")];
+        let mut img_data = vec![
+            0u8;
+            reader.output_buffer_size().ok_or_else(|| {
+                PortalCaptureError::DecodePng(
+                    "png decoder did not report an output buffer size".to_string(),
+                )
+            })?
+        ];
         let info = reader
             .next_frame(&mut img_data)
             .map_err(|e| PortalCaptureError::DecodePng(e.to_string()))?;

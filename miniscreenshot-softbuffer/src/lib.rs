@@ -11,15 +11,14 @@
 //! use miniscreenshot_softbuffer::softbuffer;
 //! ```
 //!
-//! # Example
+//! # Winit Integration
 //!
-//! ```rust,no_run
-//! use miniscreenshot_softbuffer::screenshot_from_xrgb;
+//! Enable the `winit` feature to re-export `winit` alongside `softbuffer`.
+//! This pairs naturally with `softbuffer::Surface<Rc<Window>, Rc<Window>>`.
 //!
-//! // Obtain XRGB pixels from a softbuffer Buffer somehow:
-//! let pixels: Vec<u32> = vec![0x00FF0000u32; 4]; // 2×2 solid red
-//! let shot = screenshot_from_xrgb(&pixels, 2, 2);
-//! shot.save("screenshot.png").unwrap();
+//! ```toml
+//! [dependencies]
+//! miniscreenshot-softbuffer = { version = "0.1", features = ["winit"] }
 //! ```
 
 /// Re-export of the `softbuffer` crate.
@@ -27,6 +26,13 @@
 /// Depending on `miniscreenshot-softbuffer` instead of `softbuffer` directly
 /// guarantees version compatibility across the workspace.
 pub use softbuffer;
+
+#[cfg(feature = "winit")]
+/// Re-export of the `winit` crate.
+///
+/// Enables pairing `winit::window::Window` with `softbuffer::Surface`
+/// without pulling in a conflicting winit version.
+pub use winit;
 
 pub use miniscreenshot::{Screenshot, ScreenshotProvider};
 

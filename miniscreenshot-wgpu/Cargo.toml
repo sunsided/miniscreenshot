@@ -3,11 +3,15 @@ name = "miniscreenshot-wgpu"
 version = "0.1.0"
 edition = "2021"
 description = "wgpu screenshot helper for the miniscreenshot ecosystem. Re-exports wgpu."
-license = "MIT OR Apache-2.0"
+license = "EUPL-1.2 OR MIT OR Apache-2.0"
 repository = "https://github.com/sunsided/miniscreenshot"
 keywords = ["screenshot", "wgpu", "screenshot-helper"]
 categories = ["multimedia::images", "graphics"]
+readme = "../README.md"
 
 [dependencies]
 miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }
 wgpu = "0.20"
+
+[dev-dependencies]
+pollster = "0.3"

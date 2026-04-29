@@ -2,16 +2,17 @@
 name = "miniscreenshot-vello"
 version = "0.1.0"
 edition = "2021"
-description = "Vello screenshot helper for the miniscreenshot ecosystem. Optionally re-exports vello."
-license = "MIT OR Apache-2.0"
+description = "Vello screenshot helper for the miniscreenshot ecosystem. Re-exports vello."
+license = "EUPL-1.2 OR MIT OR Apache-2.0"
 repository = "https://github.com/sunsided/miniscreenshot"
 keywords = ["screenshot", "vello", "screenshot-helper"]
 categories = ["multimedia::images", "graphics"]
+readme = "../README.md"
 
 [dependencies]
 miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }
-vello = { version = "0.2", optional = true }
+vello = "0.2"
 
-[features]
-default = []
-vello = ["dep:vello"]
+[dev-dependencies]
+pollster = "0.3"
+miniscreenshot-wgpu = { path = "../miniscreenshot-wgpu" }

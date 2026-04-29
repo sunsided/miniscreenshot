@@ -9,27 +9,30 @@ applications or the entire desktop.
 
 | Crate | Description |
 |-------|-------------|
-| [`miniscreenshot`](miniscreenshot/) | **Core** — `Screenshot` type, PNG / PPM / PGM encoding, `ScreenshotProvider` trait |
-| [`miniscreenshot-softbuffer`](miniscreenshot-softbuffer/) | [`softbuffer`](https://crates.io/crates/softbuffer) integration + re-export |
-| [`miniscreenshot-winit`](miniscreenshot-winit/) | [`winit`](https://crates.io/crates/winit) integration + re-export |
+| [`miniscreenshot`](miniscreenshot/) | **Core** — `Screenshot` type, PNG / PPM / PGM encoding, `ScreenshotProvider` / `AsyncScreenshotProvider` traits |
+| [`miniscreenshot-softbuffer`](miniscreenshot-softbuffer/) | [`softbuffer`](https://crates.io/crates/softbuffer) integration + re-export. Enable the `winit` feature to re-export [`winit`](https://crates.io/crates/winit) alongside softbuffer. |
 | [`miniscreenshot-wgpu`](miniscreenshot-wgpu/) | [`wgpu`](https://crates.io/crates/wgpu) texture readback + re-export |
 | [`miniscreenshot-wayland`](miniscreenshot-wayland/) | Wayland `wlr-screencopy-v1` system capture + re-exports |
-| [`miniscreenshot-skia`](miniscreenshot-skia/) | [`skia-safe`](https://crates.io/crates/skia-safe) re-export (opt-in `skia` feature) |
-| [`miniscreenshot-vello`](miniscreenshot-vello/) | [`vello`](https://crates.io/crates/vello) re-export (opt-in `vello` feature) |
+| [`miniscreenshot-x11`](miniscreenshot-x11/) | X11 (XGetImage / MIT-SHM) system capture + re-exports |
+| [`miniscreenshot-portal`](miniscreenshot-portal/) | XDG Desktop Portal (ashpd) system capture; works on GNOME, KDE, wlroots, and inside Flatpak/Snap |
+| [`miniscreenshot-skia`](miniscreenshot-skia/) | [`skia-safe`](https://crates.io/crates/skia-safe) re-export + surface screenshot helper |
+| [`miniscreenshot-vello`](miniscreenshot-vello/) | [`vello`](https://crates.io/crates/vello) re-export + pixel readback support |
 
 ---
 
 ## Design goals
 
-* **Pluggable** — each rendering / windowing backend is a separate crate.
-  Applications depend only on what they use.
+* **Pluggable** — each rendering backend is a separate crate. Applications depend
+  only on what they use.
 * **No version conflicts** — every driver crate re-exports its underlying
-  library (e.g., `miniscreenshot_wgpu::wgpu`).  Depending on a driver crate
+  library (e.g., `miniscreenshot_wgpu::wgpu`). Depending on a driver crate
   is sufficient; no separate `wgpu`/`winit`/… dependency required.
 * **Low-friction output formats** — PNG (default), PPM and PGM are supported
-  out of the box.  Format is inferred from the file extension.
+  out of the box. Format is inferred from the file extension.
 * **System screenshots** — Linux Wayland via `zwlr_screencopy_manager_v1`
-  (wlroots-based compositors: Sway, Hyprland, …).
+  (wlroots-based compositors: Sway, Hyprland, …), X11 via `XGetImage` with
+  an MIT-SHM fast path, and XDG Desktop Portal via `ashpd` (GNOME, KDE,
+  Flatpak, Snap).
 
 ---
 
@@ -74,6 +77,30 @@ let shot = screenshot_from_xrgb(pixels, width, height);
 shot.save("screenshot.png").unwrap();
 ```
 
+### softbuffer + winit pairing
+
+When you want to create a `softbuffer::Surface` from a `winit::Window`, enable
+the `winit` feature. This re-exports `winit` alongside `softbuffer` at the same
+version, avoiding dependency conflicts.
+
+```toml
+[dependencies]
+miniscreenshot-softbuffer = { version = "0.1", features = ["winit"] }
+```
+
+```rust
+use miniscreenshot_softbuffer::winit::window::Window;
+use miniscreenshot_softbuffer::softbuffer;
+use std::rc::Rc;
+
+// Rc<Window> implements the raw-handle traits softbuffer needs.
+let window: Rc<Window> = /* create window */;
+let ctx = softbuffer::Context::new(window.clone()).unwrap();
+let surface = softbuffer::Surface::new(&ctx, window.clone()).unwrap();
+```
+
+See the `softbuffer_winit_scene_screenshot` example for a complete demo.
+
 ### wgpu backend
 
 ```toml
@@ -110,6 +137,80 @@ shot.save("screenshot.png").unwrap();
 let shots = cap.capture_all().expect("capture all");
 ```
 
+> **Compositor requirements:** Requires a Wayland compositor that implements
+> `zwlr_screencopy_manager_v1` (wlroots-based — Sway, Hyprland, weston, cage,
+> labwc, …). GNOME-on-Wayland and KWin do **not** implement this protocol and
+> will return `WaylandCaptureError::NoScreencopyManager`. Use
+> `miniscreenshot-portal` instead on these compositors.
+
+### X11 system screenshot
+
+```toml
+[dependencies]
+miniscreenshot-x11 = "0.1"
+```
+
+```rust
+use miniscreenshot_x11::X11Capture;
+
+let mut cap = X11Capture::connect().expect("connect to X11");
+println!("{} screen(s) found", cap.screen_count());
+
+// Capture first screen
+let shot = cap.capture_screen(0).expect("capture");
+shot.save("screenshot.png").unwrap();
+
+// Or capture all screens at once
+let shots = cap.capture_all().expect("capture all");
+```
+
+> **Server requirements:** Requires a reachable X11 server (`$DISPLAY` set).
+> Uses MIT-SHM when available for a fast-path capture; otherwise falls back to
+> a plain `XGetImage` transfer over the wire.
+
+### Screenshot portal (GNOME / KDE / Flatpak)
+
+```toml
+[dependencies]
+miniscreenshot-portal = "0.1"
+```
+
+Blocking usage (default):
+
+```rust
+use miniscreenshot_portal::PortalCapture;
+
+let mut cap = PortalCapture::connect().expect("connect to portal");
+let shot = cap.capture_interactive().expect("capture");
+shot.save("screenshot.png").unwrap();
+```
+
+Async usage (requires `features = ["async"]`):
+
+```toml
+[dependencies]
+miniscreenshot-portal = { version = "0.1", default-features = false, features = ["tokio", "async"] }
+```
+
+```rust
+use miniscreenshot_portal::PortalCapture;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cap = PortalCapture::connect_async().await?;
+    let shot = cap.capture_interactive_async().await?;
+    shot.save("screenshot.png")?;
+    Ok(())
+}
+```
+
+> **Portal requirements:** Requires a running desktop session with
+> `$XDG_RUNTIME_DIR` and a portal implementation (`xdg-desktop-portal` +
+> a backend such as `xdg-desktop-portal-gnome`, `-kde`, `-wlr`, or `-gtk`).
+> GNOME always shows a confirmation dialog; KDE and wlroots may or may not
+> depending on backend policy. Works inside Flatpak and Snap sandboxes.
+> Use this crate on GNOME or KWin instead of `miniscreenshot-wayland`.
+
 ### ScreenshotProvider trait
 
 All driver crates implement (or wrap types that implement) the core
@@ -128,19 +229,41 @@ where P::Error: std::fmt::Debug
 
 ---
 
-## Optional / feature-gated backends
-
-`skia-safe` and `vello` are large, complex dependencies.  Their driver crates
-compile without them by default; enable the optional feature to unlock the
-re-export and any helpers:
+## Optional features
 
 ```toml
-# Skia
-miniscreenshot-skia = { version = "0.1", features = ["skia"] }
-
-# Vello
-miniscreenshot-vello = { version = "0.1", features = ["vello"] }
+# Winit (for softbuffer + winit integration)
+miniscreenshot-softbuffer = { version = "0.1", features = ["winit"] }
 ```
+
+### Core `async` feature
+
+The core `miniscreenshot` crate exposes an `AsyncScreenshotProvider` trait
+behind the `async` feature. This adds zero dependencies (the trait uses
+return-position `impl Trait`). Driver crates like `miniscreenshot-portal`
+can implement it:
+
+```toml
+miniscreenshot = { version = "0.1", features = ["async"] }
+```
+
+### Portal features
+
+`miniscreenshot-portal` exposes runtime and API-surface features:
+
+```toml
+# Default: tokio runtime + blocking API
+miniscreenshot-portal = "0.1"
+
+# Async-only with tokio
+miniscreenshot-portal = { version = "0.1", default-features = false, features = ["tokio", "async"] }
+
+# Async-only with async-std
+miniscreenshot-portal = { version = "0.1", default-features = false, features = ["async-std", "async"] }
+```
+
+The `tokio` and `async-std` runtime features are mutually exclusive. The
+`blocking` and `async` API-surface features are independent.
 
 ---
 
@@ -151,6 +274,38 @@ miniscreenshot-vello = { version = "0.1", features = ["vello"] }
 | PNG | `encode_png()` / `save("file.png")` | Lossless, widely supported |
 | PPM | `encode_ppm()` / `save("file.ppm")` | Binary P6, trivial to parse |
 | PGM | `encode_pgm()` / `save("file.pgm")` | Binary P5 grayscale (BT.601 luma) |
+
+---
+
+## Examples
+
+Each crate ships with a self-contained `examples/<crate_short>_scene_screenshot.rs` that
+renders a scene (or synthesises a buffer) and saves a PNG.
+
+| Crate | Command | Headless? |
+|-------|---------|-----------|
+| `miniscreenshot` (core) | `cargo run -p miniscreenshot --example core_scene_screenshot` | Yes |
+| `miniscreenshot-softbuffer` | `cargo run -p miniscreenshot-softbuffer --example softbuffer_scene_screenshot` | Yes |
+| `miniscreenshot-softbuffer` (winit) | `cargo run -p miniscreenshot-softbuffer --example softbuffer_winit_scene_screenshot --features winit` | No (needs a display) |
+| `miniscreenshot-wgpu` | `cargo run -p miniscreenshot-wgpu --example wgpu_scene_screenshot` | Yes |
+| `miniscreenshot-wayland` | `cargo run -p miniscreenshot-wayland --example wayland_scene_screenshot` | No (needs wlroots-based Wayland compositor) |
+| `miniscreenshot-x11` | `cargo run -p miniscreenshot-x11 --example x11_scene_screenshot` | No (needs `$DISPLAY` / X11 server) |
+| `miniscreenshot-portal` | `cargo run -p miniscreenshot-portal --example portal_scene_screenshot` | No (needs desktop session with portal) |
+| `miniscreenshot-portal` (async) | `cargo run -p miniscreenshot-portal --example portal_async_scene_screenshot --features async` | No (needs desktop session with portal) |
+| `miniscreenshot-skia` | `cargo run -p miniscreenshot-skia --example skia_scene_screenshot` | Yes |
+| `miniscreenshot-vello` | `cargo run -p miniscreenshot-vello --example vello_scene_screenshot` | Yes |
+
+Build all examples at once:
+
+```bash
+task examples:build
+```
+
+Build and run all headless examples:
+
+```bash
+task examples
+```
 
 ---
 

@@ -3,10 +3,11 @@ name = "miniscreenshot-wayland"
 version = "0.1.0"
 edition = "2021"
 description = "Wayland (wlr-screencopy-v1) screenshot helper for the miniscreenshot ecosystem."
-license = "MIT OR Apache-2.0"
+license = "EUPL-1.2 OR MIT OR Apache-2.0"
 repository = "https://github.com/sunsided/miniscreenshot"
 keywords = ["screenshot", "wayland", "wlr-screencopy"]
 categories = ["multimedia::images", "graphics"]
+readme = "../README.md"
 
 [dependencies]
 miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }

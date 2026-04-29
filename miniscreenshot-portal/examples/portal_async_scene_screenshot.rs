@@ -2,9 +2,7 @@ use miniscreenshot_portal::PortalCapture;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut capture = PortalCapture::connect_async()
-        .await
-        .expect("failed to connect to portal");
+    let mut capture = PortalCapture::connect_async().await;
 
     println!("capturing screenshot interactively");
     let shot = capture

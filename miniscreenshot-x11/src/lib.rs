@@ -23,6 +23,25 @@ use x11rb::protocol::shm::ConnectionExt as _;
 #[cfg(unix)]
 use std::os::raw::c_void;
 
+// ── SHM cleanup guard ────────────────────────────────────────────────────────
+
+#[cfg(unix)]
+struct ShmCleanup<'a> {
+    conn: &'a RustConnection,
+    seg_id: u32,
+    shmid: i32,
+    ptr: *mut c_void,
+}
+
+#[cfg(unix)]
+impl Drop for ShmCleanup<'_> {
+    fn drop(&mut self) {
+        let _ = self.conn.shm_detach(self.seg_id);
+        let _ = unsafe { libc::shmdt(self.ptr) };
+        let _ = unsafe { libc::shmctl(self.shmid, libc::IPC_RMID, std::ptr::null_mut()) };
+    }
+}
+
 // ── Error type ────────────────────────────────────────────────────────────────
 
 #[derive(Debug)]
@@ -107,6 +126,7 @@ struct ScreenInfo {
     height: u16,
     depth: u8,
     bits_per_pixel: u8,
+    bytes_per_line: u32,
 }
 
 impl ScreenInfo {
@@ -148,6 +168,7 @@ impl X11Capture {
                 })?;
 
             let bits_per_pixel = pixmap_format.bits_per_pixel;
+            let bytes_per_line = (width as u32 * bits_per_pixel as u32).div_ceil(32) * 4;
 
             screens.push(ScreenInfo {
                 root,
@@ -155,6 +176,7 @@ impl X11Capture {
                 height,
                 depth,
                 bits_per_pixel,
+                bytes_per_line,
             });
         }
 
@@ -186,11 +208,12 @@ impl X11Capture {
         let height = screen.height as u32;
         let depth = screen.depth;
         let bits_per_pixel = screen.bits_per_pixel;
+        let bytes_per_line = screen.bytes_per_line;
 
         let raw: Vec<u8> = if self.shm_available {
             #[cfg(unix)]
             {
-                self.shm_get_image(&screen, width, height)?
+                self.shm_get_image(&screen, width, height, bytes_per_line)?
             }
             #[cfg(not(unix))]
             {
@@ -200,7 +223,7 @@ impl X11Capture {
             self.get_image_fallback(&screen, width, height)?
         };
 
-        convert_to_rgba(&raw, width, height, depth, bits_per_pixel).ok_or(
+        convert_to_rgba(&raw, width, height, depth, bits_per_pixel, bytes_per_line).ok_or(
             X11CaptureError::UnsupportedVisual {
                 depth,
                 bits_per_pixel,
@@ -214,9 +237,10 @@ impl X11Capture {
         screen: &ScreenInfo,
         width: u32,
         height: u32,
+        bytes_per_line: u32,
     ) -> Result<Vec<u8>, X11CaptureError> {
         let seg_id: u32 = self.conn.generate_id()?;
-        let size = (width * height * 4) as usize;
+        let size = (bytes_per_line * height) as usize;
 
         let shmid = unsafe { libc::shmget(libc::IPC_PRIVATE, size, libc::IPC_CREAT | 0o600) };
         if shmid < 0 {
@@ -235,8 +259,14 @@ impl X11Capture {
             return Err(X11CaptureError::Reply(e));
         }
 
-        let _reply = self
-            .conn
+        let _guard = ShmCleanup {
+            conn: &self.conn,
+            seg_id,
+            shmid,
+            ptr,
+        };
+
+        self.conn
             .shm_get_image(
                 screen.root_drawable(),
                 0,
@@ -251,10 +281,6 @@ impl X11Capture {
             .reply()?;
 
         let raw = unsafe { std::slice::from_raw_parts(ptr as *const u8, size).to_vec() };
-
-        let _ = self.conn.shm_detach(seg_id)?;
-        unsafe { libc::shmdt(ptr) };
-        unsafe { libc::shmctl(shmid, libc::IPC_RMID, std::ptr::null_mut()) };
 
         Ok(raw)
     }
@@ -297,6 +323,7 @@ fn convert_to_rgba(
     height: u32,
     depth: u8,
     bits_per_pixel: u8,
+    bytes_per_line: u32,
 ) -> Option<Screenshot> {
     match (depth, bits_per_pixel) {
         (24..=32, 32) => {
@@ -307,9 +334,19 @@ fn convert_to_rgba(
             Some(Screenshot::from_rgba(width, height, rgba))
         }
         (24, 24) => {
+            let row_stride = bytes_per_line as usize;
+            let pixels_per_row = width as usize * 3;
             let mut rgba = Vec::with_capacity(width as usize * height as usize * 4);
-            for chunk in raw.chunks_exact(3) {
-                rgba.extend_from_slice(&[chunk[2], chunk[1], chunk[0], 255]);
+            for row in 0..height as usize {
+                let row_start = row * row_stride;
+                let row_end = row_start + pixels_per_row;
+                if row_end > raw.len() {
+                    return None;
+                }
+                let row_data = &raw[row_start..row_end];
+                for chunk in row_data.chunks_exact(3) {
+                    rgba.extend_from_slice(&[chunk[2], chunk[1], chunk[0], 255]);
+                }
             }
             Some(Screenshot::from_rgba(width, height, rgba))
         }

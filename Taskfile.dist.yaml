@@ -77,7 +77,8 @@ tasks:
       - sh: command -v cargo >/dev/null 2>&1
         msg: cargo is not installed. Please install Rust via https://rustup.rs
     cmds:
-      - cargo doc --workspace --no-deps --all-features
+      - cargo doc --workspace --no-deps --all-features --exclude miniscreenshot-portal
+      - cargo doc -p miniscreenshot-portal --no-deps --features "tokio,blocking,async"
 
   docs:open:
     desc: Build rustdoc and open in browser
@@ -87,7 +88,8 @@ tasks:
       - sh: command -v cargo >/dev/null 2>&1
         msg: cargo is not installed. Please install Rust via https://rustup.rs
     cmds:
-      - cargo doc --workspace --no-deps --all-features --open
+      - cargo doc --workspace --no-deps --all-features --exclude miniscreenshot-portal --open
+      - cargo doc -p miniscreenshot-portal --no-deps --features "tokio,blocking,async" --open
 
   examples:
     desc: Build and run all headless examples
@@ -96,10 +98,19 @@ tasks:
     cmds:
       - task: examples:core
       - task: examples:softbuffer
-      - task: examples:softbuffer:winit
       - task: examples:wgpu
       - task: examples:skia
       - task: examples:vello
+
+  examples:display:
+    desc: Build and run display-dependent examples
+    deps:
+      - examples:build
+    cmds:
+      - task: examples:softbuffer:winit
+      - task: examples:wayland
+      - task: examples:x11
+      - task: examples:portal
 
   examples:build:
     desc: Build all examples across the workspace (including feature-gated)
@@ -107,7 +118,8 @@ tasks:
       - sh: command -v cargo >/dev/null 2>&1
         msg: cargo is not installed. Please install Rust via https://rustup.rs
     cmds:
-      - cargo build --workspace --all-features --examples
+      - cargo build --workspace --all-features --examples --exclude miniscreenshot-portal
+      - cargo build -p miniscreenshot-portal --all-targets --examples --features "tokio,blocking,async"
 
   examples:core:
     desc: Run the miniscreenshot core scene example

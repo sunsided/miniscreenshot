@@ -21,7 +21,7 @@
 //! ```rust,no_run
 //! use miniscreenshot_portal::PortalCapture;
 //!
-//! let mut cap = PortalCapture::connect().expect("connect to portal");
+//! let mut cap = PortalCapture::connect();
 //! let shot = cap.capture_interactive().expect("capture");
 //! shot.save("portal_screenshot.png").unwrap();
 //! ```
@@ -33,7 +33,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let mut cap = PortalCapture::connect_async().await?;
+//!     let mut cap = PortalCapture::connect_async().await;
 //!     let shot = cap.capture_interactive_async().await?;
 //!     shot.save("portal_screenshot.png")?;
 //!     Ok(())
@@ -136,8 +136,11 @@ pub struct PortalCapture;
 
 impl PortalCapture {
     /// Connect to the user session's portal. Does not prompt yet.
-    pub async fn connect_async() -> Result<Self, PortalCaptureError> {
-        Ok(Self)
+    ///
+    /// This function is infallible; errors are reported on first capture
+    /// when the portal proxy is actually created.
+    pub async fn connect_async() -> Self {
+        Self
     }
 
     /// Blocking variant of [`connect_async`].
@@ -146,7 +149,7 @@ impl PortalCapture {
     /// matching the selected feature). Not suitable for calling from
     /// inside an existing runtime — use `connect_async` there.
     #[cfg(feature = "blocking")]
-    pub fn connect() -> Result<Self, PortalCaptureError> {
+    pub fn connect() -> Self {
         block_on(Self::connect_async())
     }
 
@@ -209,6 +212,9 @@ impl PortalCapture {
 
         let width = info.width;
         let height = info.height;
+        // The PNG reader may over-allocate `img_data` via `output_buffer_size()`.
+        // Truncate to the actual bytes written to satisfy `Screenshot` length checks.
+        img_data.truncate(info.buffer_size());
 
         let shot = match info.color_type {
             png::ColorType::Rgba => Screenshot::from_rgba(width, height, img_data),

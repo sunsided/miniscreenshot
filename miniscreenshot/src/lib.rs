@@ -262,14 +262,14 @@ pub trait AsyncScreenshotProvider {
 /// use miniscreenshot::{block_on_provider, AsyncScreenshotProvider};
 /// use miniscreenshot_portal::PortalCapture;
 ///
-/// let mut capture = PortalCapture::connect().expect("connect");
+/// let mut capture = PortalCapture::connect();
 /// let shot = block_on_provider(capture.take_screenshot(), |fut| pollster::block_on(fut)).expect("capture");
 /// ```
 #[cfg(feature = "async")]
-pub fn block_on_provider<Fut, F>(future: Fut, block_on: F) -> Result<Screenshot, Fut::Output>
+pub fn block_on_provider<Fut, F, E>(future: Fut, block_on: F) -> Result<Screenshot, E>
 where
-    Fut: std::future::Future + Send,
-    F: FnOnce(Fut) -> Result<Screenshot, Fut::Output>,
+    Fut: std::future::Future<Output = Result<Screenshot, E>> + Send,
+    F: FnOnce(Fut) -> Result<Screenshot, E>,
 {
     block_on(future)
 }

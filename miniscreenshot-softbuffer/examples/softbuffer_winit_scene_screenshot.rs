@@ -1,5 +1,6 @@
 use miniscreenshot_softbuffer::screenshot_from_xrgb;
 use miniscreenshot_softbuffer::softbuffer;
+use miniscreenshot_softbuffer::winit;
 use miniscreenshot_softbuffer::winit::application::ApplicationHandler;
 use miniscreenshot_softbuffer::winit::event::WindowEvent;
 use miniscreenshot_softbuffer::winit::event_loop::{ActiveEventLoop, EventLoop};

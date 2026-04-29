@@ -42,7 +42,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolchain: [stable, 1.87.0]
+        toolchain: [stable, 1.88.0]
         example:
           - { name: core, crate: miniscreenshot, example: core_scene_screenshot, features: "" }
           - { name: softbuffer, crate: miniscreenshot-softbuffer, example: softbuffer_scene_screenshot, features: "" }

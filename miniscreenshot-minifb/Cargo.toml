@@ -1,6 +1,6 @@
 [package]
 name = "miniscreenshot-minifb"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "minifb screenshot helper for the miniscreenshot ecosystem. Re-exports minifb."
 authors = ["Markus Mayer <widemeadows@gmail.com>"]

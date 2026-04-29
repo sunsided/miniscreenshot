@@ -1,4 +1,5 @@
 /target
+/.task
 Cargo.lock
 *.png
 *.ppm

@@ -54,6 +54,7 @@ jobs:
           - { name: vello, crate: miniscreenshot-vello, example: vello_scene_screenshot, features: "" }
           - { name: portal, crate: miniscreenshot-portal, example: portal_scene_screenshot, features: "" }
           - { name: portal+async, crate: miniscreenshot-portal, example: portal_async_scene_screenshot, features: "--features async" }
+          - { name: minifb, crate: miniscreenshot-minifb, example: minifb_scene_screenshot, features: "" }
 
     steps:
       - uses: actions/checkout@v4

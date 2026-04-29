@@ -66,6 +66,8 @@ tasks:
       - miniscreenshot-vello/src/**/*.rs
       - miniscreenshot-x11/src/**/*.rs
       - miniscreenshot-portal/src/**/*.rs
+      - miniscreenshot-minifb/Cargo.toml
+      - miniscreenshot-minifb/src/**/*.rs
     cmds:
       - cargo build --workspace
 
@@ -101,6 +103,7 @@ tasks:
       - task: examples:wgpu
       - task: examples:skia
       - task: examples:vello
+      - task: examples:minifb
 
   examples:display:
     desc: Build and run display-dependent examples
@@ -247,6 +250,14 @@ tasks:
     cmds:
       - cargo run -p miniscreenshot-vello --example vello_scene_screenshot
 
+  examples:minifb:
+    desc: Run the miniscreenshot-minifb scene example
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo run -p miniscreenshot-minifb --example minifb_scene_screenshot
+
   examples:portal:
     desc: "Run the miniscreenshot-portal screen capture example (requires a desktop session with XDG Desktop Portal)"
     summary: |
@@ -298,6 +309,7 @@ tasks:
       - task: publish:vello:dry
       - task: publish:x11:dry
       - task: publish:portal:dry
+      - task: publish:minifb:dry
 
   publish:core:dry:
     desc: Run cargo publish --dry-run for miniscreenshot
@@ -362,3 +374,11 @@ tasks:
         msg: cargo is not installed. Please install Rust via https://rustup.rs
     cmds:
       - cargo publish --dry-run -p miniscreenshot-portal
+
+  publish:minifb:dry:
+    desc: Run cargo publish --dry-run for miniscreenshot-minifb
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo publish --dry-run -p miniscreenshot-minifb

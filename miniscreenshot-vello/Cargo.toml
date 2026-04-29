@@ -12,8 +12,8 @@ readme = "../README.md"
 
 [dependencies]
 miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }
-vello = "0.2"
+vello = "0.8"
 
 [dev-dependencies]
-pollster = "0.3"
+pollster = "0.4"
 miniscreenshot-wgpu = { path = "../miniscreenshot-wgpu" }

@@ -12,4 +12,4 @@ readme = "../README.md"
 
 [dependencies]
 miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }
-skia-safe = "0.73"
+skia-safe = "0.93"

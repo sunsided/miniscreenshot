@@ -25,8 +25,8 @@ async    = []
 
 [dependencies]
 miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }
-ashpd          = { version = "0.11", default-features = false }
-png            = "0.17"
+ashpd          = { version = "0.13", default-features = false }
+png            = "0.18"
 tokio          = { version = "1", features = ["rt", "net", "time"], optional = true }
 async-std      = { version = "1", optional = true }
 

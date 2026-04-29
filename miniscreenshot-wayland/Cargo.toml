@@ -13,7 +13,7 @@ readme = "../README.md"
 [dependencies]
 miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }
 wayland-client = "0.31"
-wayland-protocols-wlr = { version = "0.2", features = ["client"] }
+wayland-protocols-wlr = { version = "0.3", features = ["client"] }
 memmap2 = "0.9"
 libc = "0.2"
 

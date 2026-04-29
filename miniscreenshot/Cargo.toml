@@ -11,7 +11,7 @@ categories = ["multimedia::images", "graphics"]
 readme = "../README.md"
 
 [dependencies]
-png = "0.17"
+png = "0.18"
 
 [dev-dependencies]
 tempfile = "3"

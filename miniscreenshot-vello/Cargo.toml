@@ -12,8 +12,10 @@ readme = "../README.md"
 
 [dependencies]
 miniscreenshot = { version = "0.2", path = "../miniscreenshot" }
+# NOTE: miniscreenshot-wgpu depends on wgpu = "0.20", which matches the wgpu
+# version re-exported by vello = "0.2". Keep them in sync.
+miniscreenshot-wgpu = { path = "../miniscreenshot-wgpu" }
 vello = "0.2"
 
 [dev-dependencies]
 pollster = "0.3"
-miniscreenshot-wgpu = { path = "../miniscreenshot-wgpu" }

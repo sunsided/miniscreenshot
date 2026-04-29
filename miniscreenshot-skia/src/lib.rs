@@ -1,16 +1,13 @@
 //! Skia screenshot helper for the miniscreenshot ecosystem.
 //!
-//! This crate re-exports `skia-safe` (when the `skia` feature is enabled) to
-//! avoid version conflicts, and provides a placeholder for extracting
-//! [`Screenshot`]s from Skia surfaces.
+//! This crate re-exports `skia-safe` to avoid version conflicts, and provides
+//! a helper for extracting [`Screenshot`]s from Skia surfaces.
 //!
-//! # Enabling Skia
-//!
-//! Add the crate with the `skia` feature flag:
+//! # Usage
 //!
 //! ```toml
 //! [dependencies]
-//! miniscreenshot-skia = { version = "0.1", features = ["skia"] }
+//! miniscreenshot-skia = "0.1"
 //! ```
 //!
 //! Then access the re-exported crate:
@@ -21,17 +18,14 @@
 
 pub use miniscreenshot::{Screenshot, ScreenshotProvider};
 
-/// Re-export of `skia-safe` when the `skia` feature is enabled.
+/// Re-export of `skia-safe`.
 ///
 /// Use this instead of a direct `skia-safe` dependency to avoid version
 /// mismatches.
-#[cfg(feature = "skia")]
 pub use skia_safe;
 
 /// Read RGBA8 pixel data from a `skia_safe::Surface` and return a
 /// [`Screenshot`].
-///
-/// This function is only available when the `skia` feature is enabled.
 ///
 /// # Example
 ///
@@ -41,7 +35,6 @@ pub use skia_safe;
 /// let screenshot = screenshot_from_surface(&mut surface);
 /// screenshot.save("output.png").unwrap();
 /// ```
-#[cfg(feature = "skia")]
 pub fn screenshot_from_surface(surface: &mut skia_safe::Surface) -> Screenshot {
     let info = surface.image_info();
     let width = info.width() as u32;

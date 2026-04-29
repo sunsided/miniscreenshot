@@ -1,8 +1,7 @@
-#[cfg(feature = "skia")]
-fn main() {
-    use miniscreenshot_skia::screenshot_from_surface;
-    use miniscreenshot_skia::skia_safe::{surfaces, Color, ISize, Paint, PaintStyle, Rect};
+use miniscreenshot_skia::screenshot_from_surface;
+use miniscreenshot_skia::skia_safe::{surfaces, Color, ISize, Paint, PaintStyle, Rect};
 
+fn main() {
     let size = ISize::new(512, 512);
     let mut surface = surfaces::raster_n32_premul(size).expect("failed to create raster surface");
 
@@ -21,10 +20,4 @@ fn main() {
     let path = "skia_screenshot.png";
     shot.save(path).expect("failed to save screenshot");
     println!("saved {path}");
-}
-
-#[cfg(not(feature = "skia"))]
-fn main() {
-    println!("Run with `--features skia` to enable this example:");
-    println!("  cargo run -p miniscreenshot-skia --example scene_screenshot --features skia");
 }

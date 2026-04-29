@@ -1,13 +1,12 @@
-#[cfg(feature = "vello")]
-fn main() {
-    use miniscreenshot_vello::vello;
-    use miniscreenshot_vello::vello::kurbo::{Affine, Rect};
-    use miniscreenshot_vello::vello::peniko::Color;
-    use miniscreenshot_vello::vello::peniko::Fill;
-    use miniscreenshot_vello::vello::{AaConfig, AaSupport, RenderParams};
-    use miniscreenshot_wgpu::capture_texture;
-    use miniscreenshot_wgpu::wgpu;
+use miniscreenshot_vello::vello;
+use miniscreenshot_vello::vello::kurbo::{Affine, Rect};
+use miniscreenshot_vello::vello::peniko::Color;
+use miniscreenshot_vello::vello::peniko::Fill;
+use miniscreenshot_vello::vello::{AaConfig, AaSupport, RenderParams};
+use miniscreenshot_wgpu::capture_texture;
+use miniscreenshot_wgpu::wgpu;
 
+fn main() {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
     let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::LowPower,
@@ -95,10 +94,4 @@ fn main() {
     let path = "vello_screenshot.png";
     shot.save(path).expect("failed to save screenshot");
     println!("saved {path}");
-}
-
-#[cfg(not(feature = "vello"))]
-fn main() {
-    println!("Run with `--features vello` to enable this example:");
-    println!("  cargo run -p miniscreenshot-vello --example scene_screenshot --features vello");
 }

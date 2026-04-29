@@ -2,7 +2,7 @@
 name = "miniscreenshot-skia"
 version = "0.1.0"
 edition = "2021"
-description = "Skia screenshot helper for the miniscreenshot ecosystem. Optionally re-exports skia-safe."
+description = "Skia screenshot helper for the miniscreenshot ecosystem. Re-exports skia-safe."
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/sunsided/miniscreenshot"
 keywords = ["screenshot", "skia", "screenshot-helper"]
@@ -10,8 +10,4 @@ categories = ["multimedia::images", "graphics"]
 
 [dependencies]
 miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }
-skia-safe = { version = "0.73", optional = true }
-
-[features]
-default = []
-skia = ["dep:skia-safe"]
+skia-safe = "0.73"

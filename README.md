@@ -15,8 +15,8 @@ applications or the entire desktop.
 | [`miniscreenshot-wayland`](miniscreenshot-wayland/) | Wayland `wlr-screencopy-v1` system capture + re-exports |
 | [`miniscreenshot-x11`](miniscreenshot-x11/) | X11 (XGetImage / MIT-SHM) system capture + re-exports |
 | [`miniscreenshot-portal`](miniscreenshot-portal/) | XDG Desktop Portal (ashpd) system capture; works on GNOME, KDE, wlroots, and inside Flatpak/Snap |
-| [`miniscreenshot-skia`](miniscreenshot-skia/) | [`skia-safe`](https://crates.io/crates/skia-safe) re-export (opt-in `skia` feature) |
-| [`miniscreenshot-vello`](miniscreenshot-vello/) | [`vello`](https://crates.io/crates/vello) re-export (opt-in `vello` feature) |
+| [`miniscreenshot-skia`](miniscreenshot-skia/) | [`skia-safe`](https://crates.io/crates/skia-safe) re-export + surface screenshot helper |
+| [`miniscreenshot-vello`](miniscreenshot-vello/) | [`vello`](https://crates.io/crates/vello) re-export + pixel readback support |
 
 ---
 
@@ -229,19 +229,9 @@ where P::Error: std::fmt::Debug
 
 ---
 
-## Optional / feature-gated backends
-
-`skia-safe` and `vello` are large, complex dependencies. Their driver crates
-compile without them by default; enable the optional feature to unlock the
-re-export and any helpers:
+## Optional features
 
 ```toml
-# Skia
-miniscreenshot-skia = { version = "0.1", features = ["skia"] }
-
-# Vello
-miniscreenshot-vello = { version = "0.1", features = ["vello"] }
-
 # Winit (for softbuffer + winit integration)
 miniscreenshot-softbuffer = { version = "0.1", features = ["winit"] }
 ```
@@ -302,8 +292,8 @@ renders a scene (or synthesises a buffer) and saves a PNG.
 | `miniscreenshot-x11` | `cargo run -p miniscreenshot-x11 --example x11_scene_screenshot` | No (needs `$DISPLAY` / X11 server) |
 | `miniscreenshot-portal` | `cargo run -p miniscreenshot-portal --example portal_scene_screenshot` | No (needs desktop session with portal) |
 | `miniscreenshot-portal` (async) | `cargo run -p miniscreenshot-portal --example portal_async_scene_screenshot --features async` | No (needs desktop session with portal) |
-| `miniscreenshot-skia` | `cargo run -p miniscreenshot-skia --example skia_scene_screenshot --features skia` | Yes |
-| `miniscreenshot-vello` | `cargo run -p miniscreenshot-vello --example vello_scene_screenshot --features vello` | Yes |
+| `miniscreenshot-skia` | `cargo run -p miniscreenshot-skia --example skia_scene_screenshot` | Yes |
+| `miniscreenshot-vello` | `cargo run -p miniscreenshot-vello --example vello_scene_screenshot` | Yes |
 
 Build all examples at once:
 

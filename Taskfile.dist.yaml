@@ -220,20 +220,20 @@ tasks:
       - cargo run -p miniscreenshot-x11 --example x11_scene_screenshot
 
   examples:skia:
-    desc: Run the miniscreenshot-skia scene example (requires --features skia)
+    desc: Run the miniscreenshot-skia scene example
     preconditions:
       - sh: command -v cargo >/dev/null 2>&1
         msg: cargo is not installed. Please install Rust via https://rustup.rs
     cmds:
-      - cargo run -p miniscreenshot-skia --example skia_scene_screenshot --features skia
+      - cargo run -p miniscreenshot-skia --example skia_scene_screenshot
 
   examples:vello:
-    desc: Run the miniscreenshot-vello scene example (requires --features vello)
+    desc: Run the miniscreenshot-vello scene example
     preconditions:
       - sh: command -v cargo >/dev/null 2>&1
         msg: cargo is not installed. Please install Rust via https://rustup.rs
     cmds:
-      - cargo run -p miniscreenshot-vello --example vello_scene_screenshot --features vello
+      - cargo run -p miniscreenshot-vello --example vello_scene_screenshot
 
   examples:portal:
     desc: "Run the miniscreenshot-portal screen capture example (requires a desktop session with XDG Desktop Portal)"

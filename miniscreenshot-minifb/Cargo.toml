@@ -1,0 +1,15 @@
+[package]
+name = "miniscreenshot-minifb"
+version = "0.1.0"
+edition = "2021"
+description = "minifb screenshot helper for the miniscreenshot ecosystem. Re-exports minifb."
+authors = ["Markus Mayer <widemeadows@gmail.com>"]
+license = "EUPL-1.2 OR MIT OR Apache-2.0"
+repository = "https://github.com/sunsided/miniscreenshot"
+keywords = ["screenshot", "minifb", "screenshot-helper"]
+categories = ["multimedia::images", "graphics"]
+readme = "../README.md"
+
+[dependencies]
+miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }
+minifb = "0.28"

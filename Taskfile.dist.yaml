@@ -57,6 +57,7 @@ tasks:
       - miniscreenshot-skia/Cargo.toml
       - miniscreenshot-vello/Cargo.toml
       - miniscreenshot-x11/Cargo.toml
+      - miniscreenshot-portal/Cargo.toml
       - miniscreenshot/src/**/*.rs
       - miniscreenshot-softbuffer/src/**/*.rs
       - miniscreenshot-wgpu/src/**/*.rs
@@ -64,6 +65,7 @@ tasks:
       - miniscreenshot-skia/src/**/*.rs
       - miniscreenshot-vello/src/**/*.rs
       - miniscreenshot-x11/src/**/*.rs
+      - miniscreenshot-portal/src/**/*.rs
     cmds:
       - cargo build --workspace
 
@@ -232,3 +234,43 @@ tasks:
         msg: cargo is not installed. Please install Rust via https://rustup.rs
     cmds:
       - cargo run -p miniscreenshot-vello --example vello_scene_screenshot --features vello
+
+  examples:portal:
+    desc: "Run the miniscreenshot-portal screen capture example (requires a desktop session with XDG Desktop Portal)"
+    summary: |
+      Run the miniscreenshot-portal screen capture example.
+
+      Requirements:
+        - A running desktop session with $XDG_RUNTIME_DIR and a portal
+          implementation (xdg-desktop-portal + a backend such as
+          xdg-desktop-portal-gnome, -kde, -wlr, or -gtk).
+        - Will pop up a confirmation dialog on GNOME; may or may not on
+          KDE and wlroots depending on the backend's policy.
+        - Works inside Flatpak/Snap sandboxes (unlike the wayland/x11 crates).
+
+      Common failures:
+
+      1) Portal error: zbus error
+         No running portal session bus or xdg-desktop-portal service.
+         Make sure you are in a desktop session with a portal backend.
+
+      2) Screenshot request was cancelled by the user
+         The user declined the portal confirmation dialog.
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo run -p miniscreenshot-portal --example portal_scene_screenshot
+
+  examples:portal:async:
+    desc: "Run the miniscreenshot-portal async screen capture example (requires portal + tokio)"
+    summary: |
+      Run the miniscreenshot-portal async screen capture example.
+
+      Same requirements as examples:portal, but runs the async variant
+      using the tokio runtime.
+    preconditions:
+      - sh: command -v cargo >/dev/null 2>&1
+        msg: cargo is not installed. Please install Rust via https://rustup.rs
+    cmds:
+      - cargo run -p miniscreenshot-portal --example portal_async_scene_screenshot --features async

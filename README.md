@@ -9,11 +9,12 @@ applications or the entire desktop.
 
 | Crate | Description |
 |-------|-------------|
-| [`miniscreenshot`](miniscreenshot/) | **Core** — `Screenshot` type, PNG / PPM / PGM encoding, `ScreenshotProvider` trait |
+| [`miniscreenshot`](miniscreenshot/) | **Core** — `Screenshot` type, PNG / PPM / PGM encoding, `ScreenshotProvider` / `AsyncScreenshotProvider` traits |
 | [`miniscreenshot-softbuffer`](miniscreenshot-softbuffer/) | [`softbuffer`](https://crates.io/crates/softbuffer) integration + re-export. Enable the `winit` feature to re-export [`winit`](https://crates.io/crates/winit) alongside softbuffer. |
 | [`miniscreenshot-wgpu`](miniscreenshot-wgpu/) | [`wgpu`](https://crates.io/crates/wgpu) texture readback + re-export |
 | [`miniscreenshot-wayland`](miniscreenshot-wayland/) | Wayland `wlr-screencopy-v1` system capture + re-exports |
 | [`miniscreenshot-x11`](miniscreenshot-x11/) | X11 (XGetImage / MIT-SHM) system capture + re-exports |
+| [`miniscreenshot-portal`](miniscreenshot-portal/) | XDG Desktop Portal (ashpd) system capture; works on GNOME, KDE, wlroots, and inside Flatpak/Snap |
 | [`miniscreenshot-skia`](miniscreenshot-skia/) | [`skia-safe`](https://crates.io/crates/skia-safe) re-export (opt-in `skia` feature) |
 | [`miniscreenshot-vello`](miniscreenshot-vello/) | [`vello`](https://crates.io/crates/vello) re-export (opt-in `vello` feature) |
 
@@ -29,8 +30,9 @@ applications or the entire desktop.
 * **Low-friction output formats** — PNG (default), PPM and PGM are supported
   out of the box. Format is inferred from the file extension.
 * **System screenshots** — Linux Wayland via `zwlr_screencopy_manager_v1`
-  (wlroots-based compositors: Sway, Hyprland, …) and X11 via `XGetImage` with
-  an MIT-SHM fast path.
+  (wlroots-based compositors: Sway, Hyprland, …), X11 via `XGetImage` with
+  an MIT-SHM fast path, and XDG Desktop Portal via `ashpd` (GNOME, KDE,
+  Flatpak, Snap).
 
 ---
 
@@ -138,7 +140,8 @@ let shots = cap.capture_all().expect("capture all");
 > **Compositor requirements:** Requires a Wayland compositor that implements
 > `zwlr_screencopy_manager_v1` (wlroots-based — Sway, Hyprland, weston, cage,
 > labwc, …). GNOME-on-Wayland and KWin do **not** implement this protocol and
-> will return `WaylandCaptureError::NoScreencopyManager`.
+> will return `WaylandCaptureError::NoScreencopyManager`. Use
+> `miniscreenshot-portal` instead on these compositors.
 
 ### X11 system screenshot
 
@@ -164,6 +167,49 @@ let shots = cap.capture_all().expect("capture all");
 > **Server requirements:** Requires a reachable X11 server (`$DISPLAY` set).
 > Uses MIT-SHM when available for a fast-path capture; otherwise falls back to
 > a plain `XGetImage` transfer over the wire.
+
+### Screenshot portal (GNOME / KDE / Flatpak)
+
+```toml
+[dependencies]
+miniscreenshot-portal = "0.1"
+```
+
+Blocking usage (default):
+
+```rust
+use miniscreenshot_portal::PortalCapture;
+
+let mut cap = PortalCapture::connect().expect("connect to portal");
+let shot = cap.capture_interactive().expect("capture");
+shot.save("screenshot.png").unwrap();
+```
+
+Async usage (requires `features = ["async"]`):
+
+```toml
+[dependencies]
+miniscreenshot-portal = { version = "0.1", default-features = false, features = ["tokio", "async"] }
+```
+
+```rust
+use miniscreenshot_portal::PortalCapture;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cap = PortalCapture::connect_async().await?;
+    let shot = cap.capture_interactive_async().await?;
+    shot.save("screenshot.png")?;
+    Ok(())
+}
+```
+
+> **Portal requirements:** Requires a running desktop session with
+> `$XDG_RUNTIME_DIR` and a portal implementation (`xdg-desktop-portal` +
+> a backend such as `xdg-desktop-portal-gnome`, `-kde`, `-wlr`, or `-gtk`).
+> GNOME always shows a confirmation dialog; KDE and wlroots may or may not
+> depending on backend policy. Works inside Flatpak and Snap sandboxes.
+> Use this crate on GNOME or KWin instead of `miniscreenshot-wayland`.
 
 ### ScreenshotProvider trait
 
@@ -200,6 +246,35 @@ miniscreenshot-vello = { version = "0.1", features = ["vello"] }
 miniscreenshot-softbuffer = { version = "0.1", features = ["winit"] }
 ```
 
+### Core `async` feature
+
+The core `miniscreenshot` crate exposes an `AsyncScreenshotProvider` trait
+behind the `async` feature. This adds zero dependencies (the trait uses
+return-position `impl Trait`). Driver crates like `miniscreenshot-portal`
+can implement it:
+
+```toml
+miniscreenshot = { version = "0.1", features = ["async"] }
+```
+
+### Portal features
+
+`miniscreenshot-portal` exposes runtime and API-surface features:
+
+```toml
+# Default: tokio runtime + blocking API
+miniscreenshot-portal = "0.1"
+
+# Async-only with tokio
+miniscreenshot-portal = { version = "0.1", default-features = false, features = ["tokio", "async"] }
+
+# Async-only with async-std
+miniscreenshot-portal = { version = "0.1", default-features = false, features = ["async-std", "async"] }
+```
+
+The `tokio` and `async-std` runtime features are mutually exclusive. The
+`blocking` and `async` API-surface features are independent.
+
 ---
 
 ## Output formats
@@ -225,6 +300,8 @@ renders a scene (or synthesises a buffer) and saves a PNG.
 | `miniscreenshot-wgpu` | `cargo run -p miniscreenshot-wgpu --example wgpu_scene_screenshot` | Yes |
 | `miniscreenshot-wayland` | `cargo run -p miniscreenshot-wayland --example wayland_scene_screenshot` | No (needs wlroots-based Wayland compositor) |
 | `miniscreenshot-x11` | `cargo run -p miniscreenshot-x11 --example x11_scene_screenshot` | No (needs `$DISPLAY` / X11 server) |
+| `miniscreenshot-portal` | `cargo run -p miniscreenshot-portal --example portal_scene_screenshot` | No (needs desktop session with portal) |
+| `miniscreenshot-portal` (async) | `cargo run -p miniscreenshot-portal --example portal_async_scene_screenshot --features async` | No (needs desktop session with portal) |
 | `miniscreenshot-skia` | `cargo run -p miniscreenshot-skia --example skia_scene_screenshot --features skia` | Yes |
 | `miniscreenshot-vello` | `cargo run -p miniscreenshot-vello --example vello_scene_screenshot --features vello` | Yes |
 

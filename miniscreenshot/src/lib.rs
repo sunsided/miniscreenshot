@@ -231,6 +231,49 @@ pub trait ScreenshotProvider {
     fn take_screenshot(&mut self) -> Result<Screenshot, Self::Error>;
 }
 
+// ── AsyncScreenshotProvider trait ────────────────────────────────────────────
+
+/// An async-capable source that can capture a screenshot.
+///
+/// This trait mirrors [`ScreenshotProvider`] but uses an `async fn` via
+/// return-position `impl Trait` in trait (RPITIT), allowing driver crates
+/// such as `miniscreenshot-portal` to expose natively async APIs without
+/// boxing futures.
+#[cfg(feature = "async")]
+pub trait AsyncScreenshotProvider {
+    /// The error type returned when capture fails.
+    type Error;
+
+    /// Capture a screenshot from this source.
+    fn take_screenshot(
+        &mut self,
+    ) -> impl std::future::Future<Output = Result<Screenshot, Self::Error>> + Send;
+}
+
+/// Helper that bridges an [`AsyncScreenshotProvider`] into a blocking call
+/// via a user-supplied executor (e.g. `pollster::block_on`).
+///
+/// This keeps the core crate dependency-free — the executor stays in the
+/// driver crate.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use miniscreenshot::{block_on_provider, AsyncScreenshotProvider};
+/// use miniscreenshot_portal::PortalCapture;
+///
+/// let mut capture = PortalCapture::connect().expect("connect");
+/// let shot = block_on_provider(capture.take_screenshot(), |fut| pollster::block_on(fut)).expect("capture");
+/// ```
+#[cfg(feature = "async")]
+pub fn block_on_provider<Fut, F>(future: Fut, block_on: F) -> Result<Screenshot, Fut::Output>
+where
+    Fut: std::future::Future + Send,
+    F: FnOnce(Fut) -> Result<Screenshot, Fut::Output>,
+{
+    block_on(future)
+}
+
 // ── Error types ──────────────────────────────────────────────────────────────
 
 /// An error that occurred while encoding a screenshot.

@@ -11,5 +11,8 @@ categories = ["multimedia::images", "graphics"]
 [dependencies]
 png = "0.17"
 
+[features]
+async = []
+
 [dev-dependencies]
 tempfile = "3"

@@ -274,7 +274,7 @@ tasks:
     cmds:
       - cargo run -p miniscreenshot-portal --example portal_scene_screenshot
 
-   examples:portal:async:
+  examples:portal:async:
     desc: "Run the miniscreenshot-portal async screen capture example (requires portal + tokio)"
     summary: |
       Run the miniscreenshot-portal async screen capture example.

@@ -10,17 +10,17 @@ categories = ["multimedia::images", "graphics", "os::linux-apis"]
 readme = "../README.md"
 
 [features]
-# Default: tokio runtime + blocking API (drop-in replacement shape).
+# Default: tokio runtime + blocking API + async API (drop-in replacement shape).
 default = ["tokio", "blocking"]
 
 # Runtime selectors — pick exactly one. Mutually exclusive; a compile_error!
-# in src/lib.rs enforces this.
-tokio     = ["ashpd/tokio", "dep:tokio"]
-async-std = ["ashpd/async-std", "dep:async-std"]
+# in src/lib.rs enforces this. Both imply the `async` API surface.
+tokio     = ["ashpd/tokio", "dep:tokio", "async"]
+async-std = ["ashpd/async-std", "dep:async-std", "async"]
 
 # API surfaces — independently toggleable.
 blocking = []
-async    = ["miniscreenshot/async"]
+async    = []
 
 [dependencies]
 miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }

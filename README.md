@@ -185,11 +185,11 @@ let shot = cap.capture_interactive().expect("capture");
 shot.save("screenshot.png").unwrap();
 ```
 
-Async usage (requires `features = ["async"]`):
+Async usage:
 
 ```toml
 [dependencies]
-miniscreenshot-portal = { version = "0.1", default-features = false, features = ["tokio", "async"] }
+miniscreenshot-portal = { version = "0.1", default-features = false, features = ["tokio"] }
 ```
 
 ```rust
@@ -236,34 +236,36 @@ where P::Error: std::fmt::Debug
 miniscreenshot-softbuffer = { version = "0.1", features = ["winit"] }
 ```
 
-### Core `async` feature
+### Async traits
 
-The core `miniscreenshot` crate exposes an `AsyncScreenshotProvider` trait
-behind the `async` feature. This adds zero dependencies (the trait uses
-return-position `impl Trait`). Driver crates like `miniscreenshot-portal`
-can implement it:
+The core `miniscreenshot` crate exposes the `AsyncScreenshotProvider` trait
+with zero additional dependencies (the trait uses return-position
+`impl Trait`). It is always available — no feature flag required:
 
 ```toml
-miniscreenshot = { version = "0.1", features = ["async"] }
+miniscreenshot = "0.1"
 ```
 
 ### Portal features
 
-`miniscreenshot-portal` exposes runtime and API-surface features:
+`miniscreenshot-portal` exposes runtime and API-surface features. Enabling
+a runtime (`tokio` or `async-std`) automatically enables the async API surface.
 
 ```toml
-# Default: tokio runtime + blocking API
+# Default: tokio runtime + blocking API + async API
 miniscreenshot-portal = "0.1"
 
-# Async-only with tokio
-miniscreenshot-portal = { version = "0.1", default-features = false, features = ["tokio", "async"] }
+# Async-only with tokio (no blocking convenience methods)
+miniscreenshot-portal = { version = "0.1", default-features = false, features = ["tokio"] }
 
 # Async-only with async-std
-miniscreenshot-portal = { version = "0.1", default-features = false, features = ["async-std", "async"] }
+miniscreenshot-portal = { version = "0.1", default-features = false, features = ["async-std"] }
 ```
 
 The `tokio` and `async-std` runtime features are mutually exclusive. The
-`blocking` and `async` API-surface features are independent.
+`blocking` API-surface feature is independent. The `async` API surface is
+implied by whichever runtime you select, but can also be enabled standalone
+if you want to provide your own executor.
 
 ---
 

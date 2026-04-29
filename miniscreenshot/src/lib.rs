@@ -239,7 +239,6 @@ pub trait ScreenshotProvider {
 /// return-position `impl Trait` in trait (RPITIT), allowing driver crates
 /// such as `miniscreenshot-portal` to expose natively async APIs without
 /// boxing futures.
-#[cfg(feature = "async")]
 pub trait AsyncScreenshotProvider {
     /// The error type returned when capture fails.
     type Error;
@@ -265,7 +264,6 @@ pub trait AsyncScreenshotProvider {
 /// let mut capture = PortalCapture::connect();
 /// let shot = block_on_provider(capture.take_screenshot(), |fut| pollster::block_on(fut)).expect("capture");
 /// ```
-#[cfg(feature = "async")]
 pub fn block_on_provider<Fut, F, E>(future: Fut, block_on: F) -> Result<Screenshot, E>
 where
     Fut: std::future::Future<Output = Result<Screenshot, E>> + Send,

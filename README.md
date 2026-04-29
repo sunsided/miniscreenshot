@@ -224,7 +224,7 @@ use miniscreenshot_minifb::{minifb, screenshot_from_minifb};
 
 // minifb stores pixels as u32 in 0RGB8888 format
 let pixels: &[u32] = /* buffer passed to Window::update_with_buffer() */ &[];
-let shot = screenshot_from_minifb(pixels, width, height);
+let shot = screenshot_from_minifb(pixels, width as u32, height as u32);
 shot.save("screenshot.png").unwrap();
 ```
 

@@ -9,14 +9,14 @@ applications or the entire desktop.
 
 | Crate | Description |
 |-------|-------------|
-| [`miniscreenshot`](miniscreenshot/) | **Core** — `Screenshot` type, PNG / PPM / PGM encoding, `ScreenshotProvider` / `AsyncScreenshotProvider` traits |
-| [`miniscreenshot-softbuffer`](miniscreenshot-softbuffer/) | [`softbuffer`](https://crates.io/crates/softbuffer) integration + re-export. Enable the `winit` feature to re-export [`winit`](https://crates.io/crates/winit) alongside softbuffer. |
-| [`miniscreenshot-wgpu`](miniscreenshot-wgpu/) | [`wgpu`](https://crates.io/crates/wgpu) texture readback + re-export |
-| [`miniscreenshot-wayland`](miniscreenshot-wayland/) | Wayland `wlr-screencopy-v1` system capture + re-exports |
-| [`miniscreenshot-x11`](miniscreenshot-x11/) | X11 (XGetImage / MIT-SHM) system capture + re-exports |
-| [`miniscreenshot-portal`](miniscreenshot-portal/) | XDG Desktop Portal (ashpd) system capture; works on GNOME, KDE, wlroots, and inside Flatpak/Snap |
-| [`miniscreenshot-skia`](miniscreenshot-skia/) | [`skia-safe`](https://crates.io/crates/skia-safe) re-export + surface screenshot helper |
-| [`miniscreenshot-vello`](miniscreenshot-vello/) | [`vello`](https://crates.io/crates/vello) re-export + pixel readback support |
+| [`miniscreenshot`](https://crates.io/crates/miniscreenshot) | **Core** — `Screenshot` type, PNG / PPM / PGM encoding, `ScreenshotProvider` / `AsyncScreenshotProvider` traits |
+| [`miniscreenshot-softbuffer`](https://crates.io/crates/miniscreenshot-softbuffer) | [`softbuffer`](https://crates.io/crates/softbuffer) integration + re-export. Enable the `winit` feature to re-export [`winit`](https://crates.io/crates/winit) alongside softbuffer. |
+| [`miniscreenshot-wgpu`](https://crates.io/crates/miniscreenshot-wgpu) | [`wgpu`](https://crates.io/crates/wgpu) texture readback + re-export |
+| [`miniscreenshot-wayland`](https://crates.io/crates/miniscreenshot-wayland) | Wayland `wlr-screencopy-v1` system capture + re-exports |
+| [`miniscreenshot-x11`](https://crates.io/crates/miniscreenshot-x11) | X11 (XGetImage / MIT-SHM) system capture + re-exports |
+| [`miniscreenshot-portal`](https://crates.io/crates/miniscreenshot-portal) | XDG Desktop Portal (ashpd) system capture; works on GNOME, KDE, wlroots, and inside Flatpak/Snap |
+| [`miniscreenshot-skia`](https://crates.io/crates/miniscreenshot-skia) | [`skia-safe`](https://crates.io/crates/skia-safe) re-export + surface screenshot helper |
+| [`miniscreenshot-vello`](https://crates.io/crates/miniscreenshot-vello) | [`vello`](https://crates.io/crates/vello) re-export + pixel readback support |
 
 ---
 

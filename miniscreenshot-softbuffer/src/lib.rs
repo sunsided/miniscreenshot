@@ -34,7 +34,83 @@ pub use softbuffer;
 /// without pulling in a conflicting winit version.
 pub use winit;
 
-pub use miniscreenshot::{Capture, Screenshot};
+pub use miniscreenshot::{Capture, CaptureError, Screenshot};
+
+/// Pixel layout used by softbuffer pixel data.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SoftbufferPixelFormat {
+    /// XRGB8888 — high byte unused, alpha forced to 255.
+    Xrgb,
+    /// ARGB8888 — alpha packed in the high byte.
+    Argb,
+}
+
+/// Borrowed view over a softbuffer pixel buffer that implements [`Capture`].
+pub struct SoftbufferCapture<'a> {
+    pixels: &'a [u32],
+    width: u32,
+    height: u32,
+    format: SoftbufferPixelFormat,
+}
+
+impl<'a> SoftbufferCapture<'a> {
+    /// Create a new capture helper using the default XRGB8888 format.
+    pub fn new(pixels: &'a [u32], width: u32, height: u32) -> Self {
+        Self::with_format(pixels, width, height, SoftbufferPixelFormat::Xrgb)
+    }
+
+    /// Create a new capture helper with an explicit pixel format.
+    pub fn with_format(
+        pixels: &'a [u32],
+        width: u32,
+        height: u32,
+        format: SoftbufferPixelFormat,
+    ) -> Self {
+        Self {
+            pixels,
+            width,
+            height,
+            format,
+        }
+    }
+}
+
+impl Capture for SoftbufferCapture<'_> {
+    type Error = CaptureError;
+
+    fn capture(&mut self) -> Result<Screenshot, CaptureError> {
+        if self.pixels.len() != (self.width as usize) * (self.height as usize) {
+            return Err(CaptureError::new(
+                miniscreenshot::CaptureErrorKind::Unsupported,
+                format!(
+                    "pixel count mismatch: expected {} but got {}",
+                    (self.width as usize) * (self.height as usize),
+                    self.pixels.len()
+                ),
+            ));
+        }
+        let rgba: Vec<u8> = self
+            .pixels
+            .iter()
+            .flat_map(|&p| match self.format {
+                SoftbufferPixelFormat::Xrgb => {
+                    let r = ((p >> 16) & 0xFF) as u8;
+                    let g = ((p >> 8) & 0xFF) as u8;
+                    let b = (p & 0xFF) as u8;
+                    [r, g, b, 255u8]
+                }
+                SoftbufferPixelFormat::Argb => {
+                    let a = ((p >> 24) & 0xFF) as u8;
+                    let r = ((p >> 16) & 0xFF) as u8;
+                    let g = ((p >> 8) & 0xFF) as u8;
+                    let b = (p & 0xFF) as u8;
+                    [r, g, b, a]
+                }
+            })
+            .collect();
+        Ok(Screenshot::from_rgba(self.width, self.height, rgba))
+    }
+}
 
 /// Convert a softbuffer pixel buffer into a [`Screenshot`].
 ///

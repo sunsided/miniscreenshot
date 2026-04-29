@@ -49,7 +49,7 @@ compile_error!("Enable one of `tokio` or `async-std` on miniscreenshot-portal.")
 pub use ashpd;
 #[cfg(feature = "async")]
 pub use miniscreenshot::CaptureAsync;
-pub use miniscreenshot::{Capture, MultiCapture, Screenshot};
+pub use miniscreenshot::{Capture, CaptureError, MultiCapture, Screenshot};
 
 use ashpd::desktop::screenshot::Screenshot as PortalScreenshot;
 use std::fs::File;
@@ -103,6 +103,33 @@ impl From<ashpd::Error> for PortalCaptureError {
                 }
             }
             other => Self::Portal(other),
+        }
+    }
+}
+
+impl From<PortalCaptureError> for CaptureError {
+    fn from(e: PortalCaptureError) -> Self {
+        use miniscreenshot::CaptureErrorKind;
+        match e {
+            PortalCaptureError::PortalCancelled => CaptureError::new(
+                CaptureErrorKind::Cancelled,
+                "screenshot request was cancelled by the user",
+            ),
+            PortalCaptureError::UnsupportedScheme(uri) => CaptureError::new(
+                CaptureErrorKind::Unsupported,
+                format!("unsupported URI scheme: {uri}"),
+            ),
+            PortalCaptureError::DecodePng(msg) => {
+                CaptureError::new(CaptureErrorKind::Decode, format!("PNG decode error: {msg}"))
+            }
+            PortalCaptureError::Portal(err) => {
+                CaptureError::new(CaptureErrorKind::Backend, format!("portal error: {err}"))
+                    .with_source(PortalCaptureError::Portal(err))
+            }
+            PortalCaptureError::Io(err) => {
+                CaptureError::new(CaptureErrorKind::Io, format!("I/O error: {err}"))
+                    .with_source(PortalCaptureError::Io(err))
+            }
         }
     }
 }
@@ -232,10 +259,10 @@ impl PortalCapture {
 
 #[cfg(feature = "blocking")]
 impl Capture for PortalCapture {
-    type Error = PortalCaptureError;
+    type Error = CaptureError;
 
-    fn capture(&mut self) -> Result<Screenshot, Self::Error> {
-        self.capture_interactive()
+    fn capture(&mut self) -> Result<Screenshot, CaptureError> {
+        self.capture_interactive().map_err(CaptureError::from)
     }
 }
 
@@ -245,22 +272,24 @@ impl MultiCapture for PortalCapture {
         1
     }
 
-    fn capture_index(&mut self, index: usize) -> Result<Screenshot, Self::Error> {
+    fn capture_index(&mut self, index: usize) -> Result<Screenshot, CaptureError> {
         if index != 0 {
-            return Err(PortalCaptureError::Io(std::io::Error::new(
-                std::io::ErrorKind::InvalidInput,
+            return Err(CaptureError::new(
+                miniscreenshot::CaptureErrorKind::Unsupported,
                 "portal only supports a single capture (index 0)",
-            )));
+            ));
         }
-        self.capture_interactive()
+        self.capture_interactive().map_err(CaptureError::from)
     }
 }
 
 #[cfg(feature = "async")]
 impl CaptureAsync for PortalCapture {
-    type Error = PortalCaptureError;
+    type Error = CaptureError;
 
-    async fn capture(&mut self) -> Result<Screenshot, Self::Error> {
-        self.capture_interactive_async().await
+    async fn capture(&mut self) -> Result<Screenshot, CaptureError> {
+        self.capture_interactive_async()
+            .await
+            .map_err(CaptureError::from)
     }
 }

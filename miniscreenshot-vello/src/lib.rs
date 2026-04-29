@@ -20,13 +20,48 @@
 //! use miniscreenshot_vello::vello;
 //! ```
 
-pub use miniscreenshot::Screenshot;
+pub use miniscreenshot::{Capture, CaptureError, Screenshot};
 
 /// Re-export of `vello`.
 ///
 /// Use this instead of a direct `vello` dependency to avoid version
 /// mismatches.
 pub use vello;
+
+/// Borrowed view over a Vello-rendered texture that implements [`Capture`].
+///
+/// # Stub
+///
+/// This is a placeholder wrapper. Use `miniscreenshot-wgpu::capture` with the
+/// texture produced by Vello for a full capture pipeline.
+pub struct VelloCapture<'a> {
+    device: &'a vello::wgpu::Device,
+    queue: &'a vello::wgpu::Queue,
+    texture: &'a vello::wgpu::Texture,
+}
+
+impl<'a> VelloCapture<'a> {
+    /// Create a new capture helper.
+    pub fn new(
+        device: &'a vello::wgpu::Device,
+        queue: &'a vello::wgpu::Queue,
+        texture: &'a vello::wgpu::Texture,
+    ) -> Self {
+        Self {
+            device,
+            queue,
+            texture,
+        }
+    }
+}
+
+impl Capture for VelloCapture<'_> {
+    type Error = CaptureError;
+
+    fn capture(&mut self) -> Result<Screenshot, CaptureError> {
+        Ok(capture(self.device, self.queue, self.texture))
+    }
+}
 
 /// Capture a screenshot from a Vello-rendered texture.
 ///

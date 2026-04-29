@@ -25,33 +25,9 @@
 //! |---------|-----------|-------|
 //! | Wayland | `$WAYLAND_DISPLAY` set | Requires wlroots-based compositor |
 //! | X11 | `$DISPLAY` set, not XWayland | Uses MIT-SHM when available |
-//! | Portal | Always available | May show a confirmation dialog |
+//! | Portal | Always available | May show a confirmation dialog
 
-use miniscreenshot::Capture;
-use miniscreenshot::Screenshot;
-
-/// Errors that can occur during automatic desktop screenshot capture.
-#[derive(Debug)]
-pub enum DesktopCaptureError {
-    /// All backends failed.
-    AllBackendsFailed(Vec<String>),
-}
-
-impl std::fmt::Display for DesktopCaptureError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::AllBackendsFailed(errors) => {
-                write!(f, "all screenshot backends failed:")?;
-                for err in errors {
-                    write!(f, "\n  - {err}")?;
-                }
-                Ok(())
-            }
-        }
-    }
-}
-
-impl std::error::Error for DesktopCaptureError {}
+use miniscreenshot::{Capture, CaptureError, Screenshot};
 
 /// Attempt to capture a screenshot using the best available backend.
 ///
@@ -61,7 +37,7 @@ impl std::error::Error for DesktopCaptureError {}
 /// 3. Portal (always available, may prompt user)
 ///
 /// Returns the first successful capture, or an error with all failure reasons.
-pub fn take() -> Result<Screenshot, DesktopCaptureError> {
+pub fn take() -> Result<Screenshot, CaptureError> {
     let mut errors = Vec::new();
 
     // Try Wayland first
@@ -93,5 +69,14 @@ pub fn take() -> Result<Screenshot, DesktopCaptureError> {
         Err(e) => errors.push(format!("Portal: {e}")),
     }
 
-    Err(DesktopCaptureError::AllBackendsFailed(errors))
+    Err(CaptureError::new(
+        miniscreenshot::CaptureErrorKind::Backend,
+        format!(
+            "all screenshot backends failed:{}",
+            errors
+                .iter()
+                .map(|e| format!("\n  - {e}"))
+                .collect::<String>()
+        ),
+    ))
 }

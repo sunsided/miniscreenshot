@@ -16,13 +16,37 @@
 //! use miniscreenshot_skia::skia_safe;
 //! ```
 
-pub use miniscreenshot::{Capture, Screenshot};
+pub use miniscreenshot::{Capture, CaptureError, Screenshot};
 
 /// Re-export of `skia-safe`.
 ///
 /// Use this instead of a direct `skia-safe` dependency to avoid version
 /// mismatches.
 pub use skia_safe;
+
+/// Borrowed view over a Skia [`skia_safe::Surface`] that implements [`Capture`].
+///
+/// The surface is borrowed mutably because `read_pixels` requires a mutable
+/// reference. This means you cannot hold `SkiaCapture` across multiple frames
+/// without re-constructing it — an acceptable trade-off.
+pub struct SkiaCapture<'a> {
+    surface: &'a mut skia_safe::Surface,
+}
+
+impl<'a> SkiaCapture<'a> {
+    /// Create a new capture helper from a mutable Skia surface reference.
+    pub fn new(surface: &'a mut skia_safe::Surface) -> Self {
+        Self { surface }
+    }
+}
+
+impl Capture for SkiaCapture<'_> {
+    type Error = CaptureError;
+
+    fn capture(&mut self) -> Result<Screenshot, CaptureError> {
+        Ok(capture(self.surface))
+    }
+}
 
 /// Read RGBA8 pixel data from a `skia_safe::Surface` and return a
 /// [`Screenshot`].

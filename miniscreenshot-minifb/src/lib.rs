@@ -21,7 +21,7 @@ use std::fmt;
 /// guarantees version compatibility across the workspace.
 pub use minifb;
 
-pub use miniscreenshot::{Capture, Screenshot};
+pub use miniscreenshot::{Capture, CaptureError, Screenshot};
 
 /// Pixel layout used by a minifb buffer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -53,6 +53,18 @@ impl fmt::Display for MinifbCaptureError {
 }
 
 impl std::error::Error for MinifbCaptureError {}
+
+impl From<MinifbCaptureError> for CaptureError {
+    fn from(e: MinifbCaptureError) -> Self {
+        match e {
+            MinifbCaptureError::DimensionMismatch { expected, actual } => CaptureError::new(
+                miniscreenshot::CaptureErrorKind::Unsupported,
+                format!("dimension mismatch: expected {expected} pixels, got {actual}"),
+            )
+            .with_source(MinifbCaptureError::DimensionMismatch { expected, actual }),
+        }
+    }
+}
 
 /// Borrowed view over a minifb pixel buffer that implements [`Capture`].
 pub struct MinifbCapture<'a> {
@@ -140,10 +152,11 @@ impl<'a> MinifbCapture<'a> {
 }
 
 impl Capture for MinifbCapture<'_> {
-    type Error = MinifbCaptureError;
+    type Error = CaptureError;
 
-    fn capture(&mut self) -> Result<Screenshot, Self::Error> {
+    fn capture(&mut self) -> Result<Screenshot, CaptureError> {
         capture_with_format(self.pixels, self.width, self.height, self.format)
+            .map_err(CaptureError::from)
     }
 }
 

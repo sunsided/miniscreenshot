@@ -295,6 +295,102 @@ pub trait MultiCapture: Capture {
     }
 }
 
+// ── CaptureError ──────────────────────────────────────────────────────────────
+
+/// A canonical error type shared by all `Capture` implementations.
+///
+/// Every driver crate maps its domain-specific error into this type via
+/// `From<DomainError>` impls, so that `&mut dyn Capture<Error = CaptureError>`
+/// works as a uniform interchange type.
+///
+/// Domain errors (`WaylandCaptureError`, `X11CaptureError`, …) remain public
+/// for consumers who prefer rich, typed error matching on concrete methods.
+#[derive(Debug)]
+pub struct CaptureError {
+    kind: CaptureErrorKind,
+    message: String,
+    source: Option<Box<dyn std::error::Error + Send + Sync>>,
+}
+
+/// High-level categories of capture failure.
+///
+/// `#[non_exhaustive]` so new variants can be added without a major-version bump.
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CaptureErrorKind {
+    /// The backend could not connect or initialise (no Wayland display, no X server, etc.).
+    Connect,
+    /// The requested output / index / format is not supported by this backend.
+    Unsupported,
+    /// The user cancelled an interactive capture (e.g. portal dialog).
+    Cancelled,
+    /// The capture was attempted but the backend reported failure mid-flight.
+    Backend,
+    /// An I/O error occurred.
+    Io,
+    /// Pixel data could not be decoded or converted.
+    Decode,
+    /// Catch-all for anything else.
+    Other,
+}
+
+impl CaptureError {
+    /// Create a new capture error with the given kind and message.
+    pub fn new(kind: CaptureErrorKind, msg: impl Into<String>) -> Self {
+        Self {
+            kind,
+            message: msg.into(),
+            source: None,
+        }
+    }
+
+    /// Attach a chained [`source`](std::error::Error::source) to this error.
+    pub fn with_source(mut self, e: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> Self {
+        self.source = Some(e.into());
+        self
+    }
+
+    /// The high-level category of this error.
+    pub fn kind(&self) -> CaptureErrorKind {
+        self.kind
+    }
+}
+
+impl std::fmt::Display for CaptureError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.kind.as_str(), self.message)
+    }
+}
+
+impl std::error::Error for CaptureError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.source.as_ref().map(|e| e.as_ref() as _)
+    }
+}
+
+impl CaptureErrorKind {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::Connect => "Connection error",
+            Self::Unsupported => "Unsupported operation",
+            Self::Cancelled => "Cancelled by user",
+            Self::Backend => "Backend failure",
+            Self::Io => "I/O error",
+            Self::Decode => "Decode error",
+            Self::Other => "Other error",
+        }
+    }
+}
+
+/// Convenience type alias for dynamic dispatch over `Capture`.
+pub type DynCapture = dyn Capture<Error = CaptureError>;
+
+/// Convenience type alias for a boxed, Send-able `Capture`.
+pub type BoxedCapture = Box<dyn Capture<Error = CaptureError> + Send>;
+
+/// Convenience type alias for dynamic dispatch over `MultiCapture`.
+pub type DynMultiCapture = dyn MultiCapture<Error = CaptureError>;
+
 // ── Error types ──────────────────────────────────────────────────────────────
 
 /// An error that occurred while encoding a screenshot.

@@ -7,6 +7,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/sunsided/miniscreenshot"
 keywords = ["screenshot", "softbuffer", "screenshot-helper"]
 categories = ["multimedia::images", "graphics"]
+readme = "../README.md"
 
 [dependencies]
 miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }

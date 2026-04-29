@@ -17,6 +17,7 @@ applications or the entire desktop.
 | [`miniscreenshot-portal`](https://crates.io/crates/miniscreenshot-portal) | XDG Desktop Portal (ashpd) system capture; works on GNOME, KDE, wlroots, and inside Flatpak/Snap |
 | [`miniscreenshot-skia`](https://crates.io/crates/miniscreenshot-skia) | [`skia-safe`](https://crates.io/crates/skia-safe) re-export + surface screenshot helper |
 | [`miniscreenshot-vello`](https://crates.io/crates/miniscreenshot-vello) | [`vello`](https://crates.io/crates/vello) re-export + pixel readback support |
+| [`miniscreenshot-minifb`](https://crates.io/crates/miniscreenshot-minifb) | [`minifb`](https://crates.io/crates/minifb) re-export + pixel buffer screenshot helper |
 
 ---
 
@@ -211,6 +212,57 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 > depending on backend policy. Works inside Flatpak and Snap sandboxes.
 > Use this crate on GNOME or KWin instead of `miniscreenshot-wayland`.
 
+### minifb (prototyping window)
+
+```toml
+[dependencies]
+miniscreenshot-minifb = "0.1"
+```
+
+```rust
+use miniscreenshot_minifb::{minifb, screenshot_from_minifb};
+
+// minifb stores pixels as u32 in 0RGB8888 format
+let pixels: &[u32] = /* buffer passed to Window::update_with_buffer() */ &[];
+let shot = screenshot_from_minifb(pixels, width as u32, height as u32);
+shot.save("screenshot.png").unwrap();
+```
+
+Full window example:
+
+```rust
+use miniscreenshot_minifb::minifb;
+use miniscreenshot_minifb::screenshot_from_minifb;
+
+fn main() {
+    let (width, height) = (640, 480);
+    let mut buffer = vec![0u32; width * height];
+
+    // Fill buffer with content...
+    for y in 0..height {
+        for x in 0..width {
+            let idx = y * width + x;
+            buffer[idx] = ((x as u32) << 16) | ((y as u32) << 8) | ((x ^ y) as u32 & 0xFF);
+        }
+    }
+
+    let mut window = minifb::Window::new(
+        "Demo",
+        width,
+        height,
+        minifb::WindowOptions::default(),
+    )
+    .expect("failed to create window");
+
+    window.update_with_buffer(&buffer, width, height).unwrap();
+
+    // Capture the displayed buffer as a Screenshot
+    let shot = screenshot_from_minifb(&buffer, width as u32, height as u32);
+    shot.save("screenshot.png").unwrap();
+    println!("saved screenshot");
+}
+```
+
 ### ScreenshotProvider trait
 
 All driver crates implement (or wrap types that implement) the core
@@ -296,6 +348,7 @@ renders a scene (or synthesises a buffer) and saves a PNG.
 | `miniscreenshot-portal` (async) | `cargo run -p miniscreenshot-portal --example portal_async_scene_screenshot --features async` | No (needs desktop session with portal) |
 | `miniscreenshot-skia` | `cargo run -p miniscreenshot-skia --example skia_scene_screenshot` | Yes |
 | `miniscreenshot-vello` | `cargo run -p miniscreenshot-vello --example vello_scene_screenshot` | Yes |
+| `miniscreenshot-minifb` | `cargo run -p miniscreenshot-minifb --example minifb_scene_screenshot` | Yes |
 
 Build all examples at once:
 

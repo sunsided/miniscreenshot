@@ -2,7 +2,8 @@
 //!
 //! This crate provides the fundamental [`Screenshot`] type along with PNG,
 //! PPM, and PGM encoding, and file-saving utilities. It also exposes the
-//! [`ScreenshotProvider`] trait that all driver crates implement.
+//! [`Capture`], [`CaptureAsync`], and [`MultiCapture`] traits that driver
+//! crates implement.
 //!
 //! # Quick start
 //!
@@ -217,60 +218,184 @@ impl Screenshot {
     }
 }
 
-// ── ScreenshotProvider trait ─────────────────────────────────────────────────
+// ── Capture trait ────────────────────────────────────────────────────────────
 
-/// A source that can capture a screenshot.
+/// A self-contained screenshot source (e.g. a system capture session).
 ///
-/// Driver crates (`miniscreenshot-softbuffer`, `miniscreenshot-wgpu`, …)
-/// implement this trait so they can be used interchangeably.
-pub trait ScreenshotProvider {
+/// Implemented by providers that already hold everything needed to produce a
+/// screenshot on demand. Driver crates (`miniscreenshot-wayland`,
+/// `miniscreenshot-x11`, `miniscreenshot-portal`, …) implement this trait so
+/// they can be used interchangeably.
+///
+/// A blanket implementation is provided for `FnMut() -> Result<Screenshot, E>`,
+/// so free functions like `miniscreenshot_wgpu::capture(&device, &queue,
+/// &texture)` can be used as trait objects via a closure:
+///
+/// ```rust,ignore
+/// let mut cap = || miniscreenshot_wgpu::capture(&device, &queue, &texture);
+/// take_and_save(&mut cap);
+/// ```
+pub trait Capture {
     /// The error type returned when capture fails.
     type Error;
 
     /// Capture a screenshot from this source.
-    fn take_screenshot(&mut self) -> Result<Screenshot, Self::Error>;
+    fn capture(&mut self) -> Result<Screenshot, Self::Error>;
 }
 
-// ── AsyncScreenshotProvider trait ────────────────────────────────────────────
+/// A blanket impl: any `FnMut` that returns `Result<Screenshot, E>` is a
+/// `Capture`. This removes the need for wrapper structs when the per-call
+/// state (device, queue, texture, surface, etc.) is captured in the closure
+/// body.
+impl<F, E> Capture for F
+where
+    F: FnMut() -> Result<Screenshot, E>,
+{
+    type Error = E;
+    fn capture(&mut self) -> Result<Screenshot, E> {
+        (self)()
+    }
+}
+
+// ── CaptureAsync trait ──────────────────────────────────────────────────────
 
 /// An async-capable source that can capture a screenshot.
 ///
-/// This trait mirrors [`ScreenshotProvider`] but uses an `async fn` via
-/// return-position `impl Trait` in trait (RPITIT), allowing driver crates
-/// such as `miniscreenshot-portal` to expose natively async APIs without
-/// boxing futures.
-pub trait AsyncScreenshotProvider {
+/// This trait mirrors [`Capture`] but uses an `async fn` via return-position
+/// `impl Trait` in trait (RPITIT), allowing driver crates such as
+/// `miniscreenshot-portal` to expose natively async APIs without boxing futures.
+pub trait CaptureAsync {
     /// The error type returned when capture fails.
     type Error;
 
     /// Capture a screenshot from this source.
-    fn take_screenshot(
+    fn capture(
         &mut self,
     ) -> impl std::future::Future<Output = Result<Screenshot, Self::Error>> + Send;
 }
 
-/// Helper that bridges an [`AsyncScreenshotProvider`] into a blocking call
-/// via a user-supplied executor (e.g. `pollster::block_on`).
+// ── MultiCapture trait ───────────────────────────────────────────────────────
+
+/// A [`Capture`] source that can capture multiple outputs (screens, monitors).
 ///
-/// This keeps the core crate dependency-free — the executor stays in the
-/// driver crate.
-///
-/// # Example
-///
-/// ```rust,ignore
-/// use miniscreenshot::{block_on_provider, AsyncScreenshotProvider};
-/// use miniscreenshot_portal::PortalCapture;
-///
-/// let mut capture = PortalCapture::connect();
-/// let shot = block_on_provider(capture.take_screenshot(), |fut| pollster::block_on(fut)).expect("capture");
-/// ```
-pub fn block_on_provider<Fut, F, E>(future: Fut, block_on: F) -> Result<Screenshot, E>
-where
-    Fut: std::future::Future<Output = Result<Screenshot, E>> + Send,
-    F: FnOnce(Fut) -> Result<Screenshot, E>,
-{
-    block_on(future)
+/// Implemented by `X11Capture`, `WaylandCapture`, and `PortalCapture`
+/// (which returns 1 for a single interactive session).
+pub trait MultiCapture: Capture {
+    /// Number of available capture sources.
+    fn source_count(&self) -> usize;
+
+    /// Capture the output at zero-based `index`.
+    fn capture_index(&mut self, index: usize) -> Result<Screenshot, Self::Error>;
+
+    /// Capture all available outputs.
+    fn capture_all(&mut self) -> Result<Vec<Screenshot>, Self::Error> {
+        (0..self.source_count())
+            .map(|i| self.capture_index(i))
+            .collect()
+    }
 }
+
+// ── CaptureError ──────────────────────────────────────────────────────────────
+
+/// A canonical error type shared by all `Capture` implementations.
+///
+/// Every driver crate maps its domain-specific error into this type via
+/// `From<DomainError>` impls, so that `&mut dyn Capture<Error = CaptureError>`
+/// works as a uniform interchange type.
+///
+/// Domain errors (`WaylandCaptureError`, `X11CaptureError`, …) remain public
+/// for consumers who prefer rich, typed error matching on concrete methods.
+#[derive(Debug)]
+pub struct CaptureError {
+    kind: CaptureErrorKind,
+    message: String,
+    source: Option<Box<dyn std::error::Error + Send + Sync>>,
+}
+
+/// High-level categories of capture failure.
+///
+/// `#[non_exhaustive]` so new variants can be added without a major-version bump.
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CaptureErrorKind {
+    /// The backend could not connect or initialise (no Wayland display, no X server, etc.).
+    Connect,
+    /// The requested output / index / format is not supported by this backend.
+    Unsupported,
+    /// The user cancelled an interactive capture (e.g. portal dialog).
+    Cancelled,
+    /// The capture was attempted but the backend reported failure mid-flight.
+    Backend,
+    /// An I/O error occurred.
+    Io,
+    /// Pixel data could not be decoded or converted.
+    Decode,
+    /// Catch-all for anything else.
+    Other,
+}
+
+impl CaptureError {
+    /// Create a new capture error with the given kind and message.
+    pub fn new(kind: CaptureErrorKind, msg: impl Into<String>) -> Self {
+        Self {
+            kind,
+            message: msg.into(),
+            source: None,
+        }
+    }
+
+    /// Attach a chained [`source`](std::error::Error::source) to this error.
+    pub fn with_source(mut self, e: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> Self {
+        self.source = Some(e.into());
+        self
+    }
+
+    /// The high-level category of this error.
+    pub fn kind(&self) -> CaptureErrorKind {
+        self.kind
+    }
+}
+
+impl std::fmt::Display for CaptureError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.kind.as_str(), self.message)
+    }
+}
+
+impl std::error::Error for CaptureError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.source.as_ref().map(|e| e.as_ref() as _)
+    }
+}
+
+impl CaptureErrorKind {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::Connect => "Connection error",
+            Self::Unsupported => "Unsupported operation",
+            Self::Cancelled => "Cancelled by user",
+            Self::Backend => "Backend failure",
+            Self::Io => "I/O error",
+            Self::Decode => "Decode error",
+            Self::Other => "Other error",
+        }
+    }
+}
+
+/// Convenience type alias for dynamic dispatch over `Capture`.
+pub type DynCapture = dyn Capture<Error = CaptureError>;
+
+/// Convenience type alias for a boxed, Send-able `Capture`.
+pub type BoxedCapture = Box<dyn Capture<Error = CaptureError> + Send>;
+
+/// Convenience type alias for dynamic dispatch over `MultiCapture`.
+pub type DynMultiCapture = dyn MultiCapture<Error = CaptureError>;
+
+/// Convenience type alias for dynamic dispatch over `CaptureAsync`.
+pub type DynCaptureAsync = dyn CaptureAsync<Error = CaptureError>;
+
+/// Convenience type alias for a boxed, Send-able `CaptureAsync`.
+pub type BoxedCaptureAsync = Box<dyn CaptureAsync<Error = CaptureError> + Send>;
 
 // ── Error types ──────────────────────────────────────────────────────────────
 
@@ -414,9 +539,9 @@ mod tests {
         let png_bytes = original.encode_png().unwrap();
 
         // Decode with the `png` crate and compare pixel data
-        let decoder = png::Decoder::new(png_bytes.as_slice());
+        let decoder = png::Decoder::new(std::io::Cursor::new(&png_bytes));
         let mut reader = decoder.read_info().unwrap();
-        let mut decoded = vec![0u8; reader.output_buffer_size()];
+        let mut decoded = vec![0u8; reader.output_buffer_size().expect("output_buffer_size")];
         let info = reader.next_frame(&mut decoded).unwrap();
         decoded.truncate(info.buffer_size());
 

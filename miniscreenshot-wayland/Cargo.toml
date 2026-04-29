@@ -1,6 +1,6 @@
 [package]
 name = "miniscreenshot-wayland"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Wayland (wlr-screencopy-v1) screenshot helper for the miniscreenshot ecosystem."
 authors = ["Markus Mayer <widemeadows@gmail.com>"]
@@ -11,9 +11,9 @@ categories = ["multimedia::images", "graphics"]
 readme = "../README.md"
 
 [dependencies]
-miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }
+miniscreenshot = { version = "0.2", path = "../miniscreenshot" }
 wayland-client = "0.31"
-wayland-protocols-wlr = { version = "0.2", features = ["client"] }
+wayland-protocols-wlr = { version = "0.3", features = ["client"] }
 memmap2 = "0.9"
 libc = "0.2"
 

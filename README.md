@@ -9,7 +9,7 @@ applications or the entire desktop.
 
 | Crate | Description |
 |-------|-------------|
-| [`miniscreenshot`](https://crates.io/crates/miniscreenshot) | **Core** — `Screenshot` type, PNG / PPM / PGM encoding, `ScreenshotProvider` / `AsyncScreenshotProvider` traits |
+| [`miniscreenshot`](https://crates.io/crates/miniscreenshot) | **Core** — `Screenshot` type, PNG / PPM / PGM encoding, `Capture` / `CaptureAsync` / `MultiCapture` traits |
 | [`miniscreenshot-softbuffer`](https://crates.io/crates/miniscreenshot-softbuffer) | [`softbuffer`](https://crates.io/crates/softbuffer) integration + re-export. Enable the `winit` feature to re-export [`winit`](https://crates.io/crates/winit) alongside softbuffer. |
 | [`miniscreenshot-wgpu`](https://crates.io/crates/miniscreenshot-wgpu) | [`wgpu`](https://crates.io/crates/wgpu) texture readback + re-export |
 | [`miniscreenshot-wayland`](https://crates.io/crates/miniscreenshot-wayland) | Wayland `wlr-screencopy-v1` system capture + re-exports |
@@ -18,6 +18,7 @@ applications or the entire desktop.
 | [`miniscreenshot-skia`](https://crates.io/crates/miniscreenshot-skia) | [`skia-safe`](https://crates.io/crates/skia-safe) re-export + surface screenshot helper |
 | [`miniscreenshot-vello`](https://crates.io/crates/miniscreenshot-vello) | [`vello`](https://crates.io/crates/vello) re-export + pixel readback support |
 | [`miniscreenshot-minifb`](https://crates.io/crates/miniscreenshot-minifb) | [`minifb`](https://crates.io/crates/minifb) re-export + pixel buffer screenshot helper |
+| [`miniscreenshot-desktop`](https://crates.io/crates/miniscreenshot-desktop) | **Umbrella** — auto-selects Wayland → X11 → Portal for "just take a screenshot" |
 
 ---
 
@@ -43,7 +44,7 @@ applications or the entire desktop.
 
 ```toml
 [dependencies]
-miniscreenshot = "0.1"
+miniscreenshot = "0.2"
 ```
 
 ```rust
@@ -62,19 +63,35 @@ let ppm_bytes: Vec<u8> = shot.encode_ppm();   // lossless, trivial format
 let pgm_bytes: Vec<u8> = shot.encode_pgm();   // grayscale
 ```
 
+### Desktop umbrella (just take a screenshot)
+
+```toml
+[dependencies]
+miniscreenshot-desktop = "0.2"
+```
+
+```rust
+use miniscreenshot_desktop::take;
+
+let shot = take().expect("screenshot");
+shot.save("desktop.png").unwrap();
+```
+
+The `take()` function auto-selects the best backend: Wayland → X11 → Portal.
+
 ### softbuffer backend
 
 ```toml
 [dependencies]
-miniscreenshot-softbuffer = "0.1"
+miniscreenshot-softbuffer = "0.2"
 ```
 
 ```rust
-use miniscreenshot_softbuffer::{softbuffer, screenshot_from_xrgb};
+use miniscreenshot_softbuffer::{softbuffer, capture};
 
 // softbuffer stores pixels as u32 XRGB8888 values
 let pixels: &[u32] = /* buffer.deref() from softbuffer */ &[];
-let shot = screenshot_from_xrgb(pixels, width, height);
+let shot = capture(pixels, width, height);
 shot.save("screenshot.png").unwrap();
 ```
 
@@ -86,7 +103,7 @@ version, avoiding dependency conflicts.
 
 ```toml
 [dependencies]
-miniscreenshot-softbuffer = { version = "0.1", features = ["winit"] }
+miniscreenshot-softbuffer = { version = "0.2", features = ["winit"] }
 ```
 
 ```rust
@@ -106,14 +123,14 @@ See the `softbuffer_winit_scene_screenshot` example for a complete demo.
 
 ```toml
 [dependencies]
-miniscreenshot-wgpu = "0.1"
+miniscreenshot-wgpu = "0.2"
 ```
 
 ```rust
-use miniscreenshot_wgpu::{wgpu, capture_texture};
+use miniscreenshot_wgpu::{wgpu, capture};
 
 // `texture` must have been created with TextureUsages::COPY_SRC
-let shot = capture_texture(&device, &queue, &texture).unwrap();
+let shot = capture(&device, &queue, &texture).unwrap();
 shot.save("screenshot.png").unwrap();
 ```
 
@@ -121,7 +138,7 @@ shot.save("screenshot.png").unwrap();
 
 ```toml
 [dependencies]
-miniscreenshot-wayland = "0.1"
+miniscreenshot-wayland = "0.2"
 ```
 
 ```rust
@@ -148,7 +165,7 @@ let shots = cap.capture_all().expect("capture all");
 
 ```toml
 [dependencies]
-miniscreenshot-x11 = "0.1"
+miniscreenshot-x11 = "0.2"
 ```
 
 ```rust
@@ -173,7 +190,7 @@ let shots = cap.capture_all().expect("capture all");
 
 ```toml
 [dependencies]
-miniscreenshot-portal = "0.1"
+miniscreenshot-portal = "0.2"
 ```
 
 Blocking usage (default):
@@ -190,7 +207,7 @@ Async usage:
 
 ```toml
 [dependencies]
-miniscreenshot-portal = { version = "0.1", default-features = false, features = ["tokio"] }
+miniscreenshot-portal = { version = "0.2", default-features = false, features = ["tokio"] }
 ```
 
 ```rust
@@ -198,7 +215,7 @@ use miniscreenshot_portal::PortalCapture;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cap = PortalCapture::connect_async().await?;
+    let mut cap = PortalCapture::connect_async().await;
     let shot = cap.capture_interactive_async().await?;
     shot.save("screenshot.png")?;
     Ok(())
@@ -216,15 +233,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```toml
 [dependencies]
-miniscreenshot-minifb = "0.1"
+miniscreenshot-minifb = "0.2"
 ```
 
 ```rust
-use miniscreenshot_minifb::{minifb, screenshot_from_minifb};
+use miniscreenshot_minifb::capture;
 
 // minifb stores pixels as u32 in 0RGB8888 format
 let pixels: &[u32] = /* buffer passed to Window::update_with_buffer() */ &[];
-let shot = screenshot_from_minifb(pixels, width as u32, height as u32);
+let shot = capture(pixels, width as u32, height as u32).unwrap();
 shot.save("screenshot.png").unwrap();
 ```
 
@@ -232,7 +249,7 @@ Full window example:
 
 ```rust
 use miniscreenshot_minifb::minifb;
-use miniscreenshot_minifb::screenshot_from_minifb;
+use miniscreenshot_minifb::capture;
 
 fn main() {
     let (width, height) = (640, 480);
@@ -257,25 +274,65 @@ fn main() {
     window.update_with_buffer(&buffer, width, height).unwrap();
 
     // Capture the displayed buffer as a Screenshot
-    let shot = screenshot_from_minifb(&buffer, width as u32, height as u32);
+    let shot = capture(&buffer, width as u32, height as u32).unwrap();
     shot.save("screenshot.png").unwrap();
     println!("saved screenshot");
 }
 ```
 
-### ScreenshotProvider trait
+### Capture trait
 
-All driver crates implement (or wrap types that implement) the core
-`ScreenshotProvider` trait, making backends interchangeable:
+All system-capture driver crates (`-wayland`, `-x11`, `-portal`) implement
+the core `Capture` trait, making backends interchangeable:
 
 ```rust
-use miniscreenshot::ScreenshotProvider;
+use miniscreenshot::Capture;
 
-fn take_and_save<P: ScreenshotProvider>(provider: &mut P)
-where P::Error: std::fmt::Debug
+fn take_and_save<C: Capture>(cap: &mut C)
+where C::Error: std::fmt::Debug
 {
-    let shot = provider.take_screenshot().unwrap();
+    let shot = cap.capture().unwrap();
     shot.save("output.png").unwrap();
+}
+```
+
+#### Closures as Capture
+
+A blanket implementation allows any `FnMut() -> Result<Screenshot, E>` to be
+used as a `Capture`. This means free functions like `miniscreenshot_wgpu::capture`
+can be used directly:
+
+```rust
+use miniscreenshot::Capture;
+
+fn take_and_save<C: Capture>(cap: &mut C)
+where C::Error: std::fmt::Debug
+{
+    let shot = cap.capture().unwrap();
+    shot.save("output.png").unwrap();
+}
+
+// Usage with a wgpu closure:
+let mut cap = || miniscreenshot_wgpu::capture(&device, &queue, &texture);
+take_and_save(&mut cap);
+```
+
+#### MultiCapture
+
+For backends with multiple outputs (monitors), the `MultiCapture` super-trait
+provides `source_count()`, `capture_index()`, and `capture_all()`:
+
+```rust
+use miniscreenshot::{Capture, MultiCapture};
+
+fn capture_all_screens<C: MultiCapture>(cap: &mut C)
+where C::Error: std::fmt::Debug
+{
+    println!("{} screen(s) found", cap.source_count());
+    let shots = cap.capture_all().unwrap();
+    for (i, shot) in shots.iter().enumerate() {
+        shot.save(&format!("screen_{i}.png")).unwrap();
+    }
 }
 ```
 
@@ -285,17 +342,7 @@ where P::Error: std::fmt::Debug
 
 ```toml
 # Winit (for softbuffer + winit integration)
-miniscreenshot-softbuffer = { version = "0.1", features = ["winit"] }
-```
-
-### Async traits
-
-The core `miniscreenshot` crate exposes the `AsyncScreenshotProvider` trait
-with zero additional dependencies (the trait uses return-position
-`impl Trait`). It is always available — no feature flag required:
-
-```toml
-miniscreenshot = "0.1"
+miniscreenshot-softbuffer = { version = "0.2", features = ["winit"] }
 ```
 
 ### Portal features
@@ -305,13 +352,13 @@ a runtime (`tokio` or `async-std`) automatically enables the async API surface.
 
 ```toml
 # Default: tokio runtime + blocking API + async API
-miniscreenshot-portal = "0.1"
+miniscreenshot-portal = "0.2"
 
 # Async-only with tokio (no blocking convenience methods)
-miniscreenshot-portal = { version = "0.1", default-features = false, features = ["tokio"] }
+miniscreenshot-portal = { version = "0.2", default-features = false, features = ["tokio"] }
 
 # Async-only with async-std
-miniscreenshot-portal = { version = "0.1", default-features = false, features = ["async-std"] }
+miniscreenshot-portal = { version = "0.2", default-features = false, features = ["async-std"] }
 ```
 
 The `tokio` and `async-std` runtime features are mutually exclusive. The

@@ -25,13 +25,13 @@
 /// version compatibility across the workspace.
 pub use wgpu;
 
-pub use miniscreenshot::{Screenshot, ScreenshotProvider};
+pub use miniscreenshot::{Capture, CaptureError, Screenshot};
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /// Errors that can occur while capturing a GPU texture.
 #[derive(Debug)]
-pub enum CaptureError {
+pub enum WgpuCaptureError {
     /// The texture format is not yet supported.
     ///
     /// Supported formats: `Rgba8Unorm`, `Rgba8UnormSrgb`, `Bgra8Unorm`,
@@ -40,25 +40,92 @@ pub enum CaptureError {
 
     /// The staging buffer could not be mapped.
     MapFailed(wgpu::BufferAsyncError),
+
+    /// The device poll failed.
+    PollFailed(wgpu::PollError),
 }
 
-impl std::fmt::Display for CaptureError {
+impl std::fmt::Display for WgpuCaptureError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::UnsupportedFormat(fmt) => {
                 write!(f, "unsupported texture format for screenshot: {fmt:?}")
             }
             Self::MapFailed(e) => write!(f, "staging buffer map failed: {e}"),
+            Self::PollFailed(e) => write!(f, "device poll failed: {e}"),
         }
     }
 }
 
-impl std::error::Error for CaptureError {
+impl std::error::Error for WgpuCaptureError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::MapFailed(e) => Some(e),
+            Self::PollFailed(e) => Some(e),
             _ => None,
         }
+    }
+}
+
+impl From<WgpuCaptureError> for CaptureError {
+    fn from(e: WgpuCaptureError) -> Self {
+        match e {
+            WgpuCaptureError::UnsupportedFormat(fmt) => CaptureError::new(
+                miniscreenshot::CaptureErrorKind::Unsupported,
+                format!("unsupported texture format: {fmt:?}"),
+            )
+            .with_source(WgpuCaptureError::UnsupportedFormat(fmt)),
+            WgpuCaptureError::MapFailed(e) => CaptureError::new(
+                miniscreenshot::CaptureErrorKind::Backend,
+                format!("staging buffer map failed: {e}"),
+            )
+            .with_source(WgpuCaptureError::MapFailed(e)),
+            WgpuCaptureError::PollFailed(e) => CaptureError::new(
+                miniscreenshot::CaptureErrorKind::Backend,
+                format!("device poll failed: {e}"),
+            )
+            .with_source(WgpuCaptureError::PollFailed(e)),
+        }
+    }
+}
+
+/// Borrowed view over a wgpu [`Texture`](wgpu::Texture) that implements [`Capture`].
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use miniscreenshot::Capture;
+/// use miniscreenshot_wgpu::WgpuCapture;
+///
+/// let mut cap = WgpuCapture::new(&device, &queue, &texture);
+/// let shot = cap.capture()?;
+/// ```
+pub struct WgpuCapture<'a> {
+    device: &'a wgpu::Device,
+    queue: &'a wgpu::Queue,
+    texture: &'a wgpu::Texture,
+}
+
+impl<'a> WgpuCapture<'a> {
+    /// Create a new capture helper.
+    pub fn new(
+        device: &'a wgpu::Device,
+        queue: &'a wgpu::Queue,
+        texture: &'a wgpu::Texture,
+    ) -> Self {
+        Self {
+            device,
+            queue,
+            texture,
+        }
+    }
+}
+
+impl Capture for WgpuCapture<'_> {
+    type Error = CaptureError;
+
+    fn capture(&mut self) -> Result<Screenshot, CaptureError> {
+        capture(self.device, self.queue, self.texture).map_err(CaptureError::from)
     }
 }
 
@@ -73,17 +140,17 @@ impl std::error::Error for CaptureError {
 /// | `Rgba8Unorm` / `Rgba8UnormSrgb` | Used directly |
 /// | `Bgra8Unorm` / `Bgra8UnormSrgb` | Channels reordered to RGBA |
 ///
-/// All other formats return [`CaptureError::UnsupportedFormat`].
+/// All other formats return [`WgpuCaptureError::UnsupportedFormat`].
 ///
 /// # Blocking behaviour
 ///
 /// This function calls [`wgpu::Device::poll`] with [`wgpu::Maintain::Wait`],
 /// which blocks the current thread until the GPU work is complete.
-pub fn capture_texture(
+pub fn capture(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     texture: &wgpu::Texture,
-) -> Result<Screenshot, CaptureError> {
+) -> Result<Screenshot, WgpuCaptureError> {
     let size = texture.size();
     let width = size.width;
     let height = size.height;
@@ -93,7 +160,7 @@ pub fn capture_texture(
     let is_bgra = match format {
         wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Rgba8UnormSrgb => false,
         wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb => true,
-        _ => return Err(CaptureError::UnsupportedFormat(format)),
+        _ => return Err(WgpuCaptureError::UnsupportedFormat(format)),
     };
 
     let bytes_per_row = padded_bytes_per_row(width);
@@ -113,9 +180,9 @@ pub fn capture_texture(
     });
     encoder.copy_texture_to_buffer(
         texture.as_image_copy(),
-        wgpu::ImageCopyBuffer {
+        wgpu::TexelCopyBufferInfo {
             buffer: &staging_buffer,
-            layout: wgpu::ImageDataLayout {
+            layout: wgpu::TexelCopyBufferLayout {
                 offset: 0,
                 bytes_per_row: Some(bytes_per_row),
                 rows_per_image: Some(height),
@@ -131,10 +198,12 @@ pub fn capture_texture(
     buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
         let _ = tx.send(result);
     });
-    device.poll(wgpu::Maintain::Wait);
+    device
+        .poll(wgpu::PollType::wait_indefinitely())
+        .map_err(WgpuCaptureError::PollFailed)?;
     rx.recv()
         .expect("map_async callback channel closed unexpectedly")
-        .map_err(CaptureError::MapFailed)?;
+        .map_err(WgpuCaptureError::MapFailed)?;
 
     // Strip row padding and optionally swap BGRA → RGBA.
     let mapped = buffer_slice.get_mapped_range();

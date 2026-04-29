@@ -22,7 +22,7 @@
 //! shot.save("screenshot.png").unwrap();
 //! ```
 
-pub use miniscreenshot::{Screenshot, ScreenshotProvider};
+pub use miniscreenshot::{Capture, CaptureError, MultiCapture, Screenshot};
 pub use wayland_client;
 pub use wayland_protocols_wlr;
 
@@ -70,6 +70,43 @@ impl std::error::Error for WaylandCaptureError {
             Self::Dispatch(e) => Some(e),
             Self::Io(e) => Some(e),
             _ => None,
+        }
+    }
+}
+
+impl From<WaylandCaptureError> for CaptureError {
+    fn from(e: WaylandCaptureError) -> Self {
+        use miniscreenshot::CaptureErrorKind;
+        match e {
+            WaylandCaptureError::Connection(err) => CaptureError::new(
+                CaptureErrorKind::Connect,
+                format!("Wayland connection error: {err}"),
+            )
+            .with_source(WaylandCaptureError::Connection(err)),
+            WaylandCaptureError::NoScreencopyManager => CaptureError::new(
+                CaptureErrorKind::Unsupported,
+                "compositor lacks zwlr_screencopy_manager_v1",
+            ),
+            WaylandCaptureError::NoShm => {
+                CaptureError::new(CaptureErrorKind::Unsupported, "compositor lacks wl_shm")
+            }
+            WaylandCaptureError::OutputNotFound(i) => CaptureError::new(
+                CaptureErrorKind::Unsupported,
+                format!("output index {i} not found"),
+            ),
+            WaylandCaptureError::CaptureFailed => CaptureError::new(
+                CaptureErrorKind::Backend,
+                "compositor reported capture failure",
+            ),
+            WaylandCaptureError::Dispatch(err) => CaptureError::new(
+                CaptureErrorKind::Backend,
+                format!("Wayland dispatch error: {err}"),
+            )
+            .with_source(WaylandCaptureError::Dispatch(err)),
+            WaylandCaptureError::Io(err) => {
+                CaptureError::new(CaptureErrorKind::Io, format!("I/O error: {err}"))
+                    .with_source(WaylandCaptureError::Io(err))
+            }
         }
     }
 }
@@ -455,4 +492,24 @@ fn convert_to_rgba(
         }
     }
     Some(Screenshot::from_rgba(width, height, rgba))
+}
+
+// ── Capture ──────────────────────────────────────────────────────────────────
+
+impl Capture for WaylandCapture {
+    type Error = CaptureError;
+
+    fn capture(&mut self) -> Result<Screenshot, CaptureError> {
+        self.capture_output(0).map_err(CaptureError::from)
+    }
+}
+
+impl MultiCapture for WaylandCapture {
+    fn source_count(&self) -> usize {
+        self.output_count()
+    }
+
+    fn capture_index(&mut self, index: usize) -> Result<Screenshot, CaptureError> {
+        self.capture_output(index).map_err(CaptureError::from)
+    }
 }

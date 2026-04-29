@@ -1,4 +1,4 @@
-use miniscreenshot_minifb::{MinifbCapture, ScreenshotProvider};
+use miniscreenshot_minifb::capture;
 
 fn main() {
     let size = 256u32;
@@ -14,8 +14,7 @@ fn main() {
         }
     }
 
-    let mut capture = MinifbCapture::new(&pixels, size, size);
-    let shot = capture.take_screenshot().expect("screenshot failed");
+    let shot = capture(&pixels, size, size).expect("screenshot failed");
     let path = "minifb_screenshot.png";
     shot.save(path).expect("failed to save screenshot");
     println!("saved {path}");

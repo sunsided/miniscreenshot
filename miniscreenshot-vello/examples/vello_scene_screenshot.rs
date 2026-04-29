@@ -1,13 +1,14 @@
 use miniscreenshot_vello::vello;
 use miniscreenshot_vello::vello::kurbo::{Affine, Rect};
+use miniscreenshot_vello::vello::peniko::color::palette;
 use miniscreenshot_vello::vello::peniko::Color;
 use miniscreenshot_vello::vello::peniko::Fill;
 use miniscreenshot_vello::vello::{AaConfig, AaSupport, RenderParams};
-use miniscreenshot_wgpu::capture_texture;
+use miniscreenshot_wgpu::capture;
 use miniscreenshot_wgpu::wgpu;
 
 fn main() {
-    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
+    let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
     let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::LowPower,
         force_fallback_adapter: false,
@@ -15,14 +16,12 @@ fn main() {
     }))
     .expect("failed to request adapter");
 
-    let (device, queue) = pollster::block_on(adapter.request_device(
-        &wgpu::DeviceDescriptor {
-            label: None,
-            required_features: wgpu::Features::empty(),
-            required_limits: wgpu::Limits::default(),
-        },
-        None,
-    ))
+    let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+        label: None,
+        required_features: wgpu::Features::empty(),
+        required_limits: wgpu::Limits::default(),
+        ..Default::default()
+    }))
     .expect("failed to request device");
 
     let size = 512u32;
@@ -46,10 +45,10 @@ fn main() {
     let mut renderer = vello::Renderer::new(
         &device,
         vello::RendererOptions {
-            surface_format: Some(wgpu::TextureFormat::Rgba8Unorm),
             use_cpu: false,
             antialiasing_support: AaSupport::all(),
             num_init_threads: None,
+            ..Default::default()
         },
     )
     .expect("failed to create Vello renderer");
@@ -58,27 +57,27 @@ fn main() {
     scene.fill(
         Fill::NonZero,
         Affine::IDENTITY,
-        Color::rgb8(51, 77, 153),
+        Color::from_rgb8(51, 77, 153),
         None,
         &Rect::new(0.0, 0.0, 512.0, 512.0),
     );
     scene.fill(
         Fill::NonZero,
         Affine::IDENTITY,
-        Color::rgb8(255, 128, 51),
+        Color::from_rgb8(255, 128, 51),
         None,
         &Rect::new(100.0, 100.0, 300.0, 300.0),
     );
     scene.fill(
         Fill::NonZero,
         Affine::translate((50.0, 50.0)),
-        Color::rgb8(51, 204, 128),
+        Color::from_rgb8(51, 204, 128),
         None,
         &Rect::new(200.0, 200.0, 400.0, 400.0),
     );
 
     let render_params = RenderParams {
-        base_color: Color::BLACK,
+        base_color: palette::css::BLACK,
         width: size,
         height: size,
         antialiasing_method: AaConfig::Msaa16,
@@ -90,7 +89,7 @@ fn main() {
         .render_to_texture(&device, &queue, &scene, &texture_view, &render_params)
         .expect("Vello render failed");
 
-    let shot = capture_texture(&device, &queue, &texture).expect("failed to capture texture");
+    let shot = capture(&device, &queue, &texture).expect("failed to capture texture");
     let path = "vello_screenshot.png";
     shot.save(path).expect("failed to save screenshot");
     println!("saved {path}");

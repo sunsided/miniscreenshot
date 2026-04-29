@@ -1,4 +1,4 @@
-use miniscreenshot_softbuffer::screenshot_from_xrgb;
+use miniscreenshot_softbuffer::capture;
 
 fn main() {
     let size = 256u32;
@@ -14,7 +14,7 @@ fn main() {
         }
     }
 
-    let shot = screenshot_from_xrgb(&pixels, size, size);
+    let shot = capture(&pixels, size, size);
     let path = "softbuffer_screenshot.png";
     shot.save(path).expect("failed to save screenshot");
     println!("saved {path}");

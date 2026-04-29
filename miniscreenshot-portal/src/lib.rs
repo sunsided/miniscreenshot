@@ -10,11 +10,11 @@
 //! | Feature | Description |
 //! |---------|-------------|
 //! | `tokio` (default) | Use tokio as the async runtime for ashpd |
-//! | `async-std` | Use async-std as the async runtime for ashpd |
+//! | `async-io` | Use async-io as the async runtime for ashpd |
 //! | `blocking` (default) | Enable blocking convenience methods via `pollster` |
-//! | `async` | Enable `AsyncScreenshotProvider` trait impl |
+//! | `async` | Enable `CaptureAsync` trait impl |
 //!
-//! Exactly one of `tokio` or `async-std` must be enabled.
+//! Exactly one of `tokio` or `async-io` must be enabled.
 //!
 //! # Example (blocking)
 //!
@@ -40,18 +40,19 @@
 //! }
 //! ```
 
-#[cfg(all(feature = "tokio", feature = "async-std"))]
-compile_error!("Enable exactly one of `tokio` or `async-std` on miniscreenshot-portal.");
+#[cfg(all(feature = "tokio", feature = "async-io"))]
+compile_error!("Enable exactly one of `tokio` or `async-io` on miniscreenshot-portal.");
 
-#[cfg(not(any(feature = "tokio", feature = "async-std")))]
-compile_error!("Enable one of `tokio` or `async-std` on miniscreenshot-portal.");
+#[cfg(not(any(feature = "tokio", feature = "async-io")))]
+compile_error!("Enable one of `tokio` or `async-io` on miniscreenshot-portal.");
 
 pub use ashpd;
 #[cfg(feature = "async")]
-pub use miniscreenshot::AsyncScreenshotProvider;
-pub use miniscreenshot::{Screenshot, ScreenshotProvider};
+pub use miniscreenshot::CaptureAsync;
+pub use miniscreenshot::{Capture, CaptureError, MultiCapture, Screenshot};
 
 use ashpd::desktop::screenshot::Screenshot as PortalScreenshot;
+use percent_encoding::percent_decode_str;
 use std::fs::File;
 use std::io::Read;
 
@@ -107,6 +108,33 @@ impl From<ashpd::Error> for PortalCaptureError {
     }
 }
 
+impl From<PortalCaptureError> for CaptureError {
+    fn from(e: PortalCaptureError) -> Self {
+        use miniscreenshot::CaptureErrorKind;
+        match e {
+            PortalCaptureError::PortalCancelled => CaptureError::new(
+                CaptureErrorKind::Cancelled,
+                "screenshot request was cancelled by the user",
+            ),
+            PortalCaptureError::UnsupportedScheme(uri) => CaptureError::new(
+                CaptureErrorKind::Unsupported,
+                format!("unsupported URI scheme: {uri}"),
+            ),
+            PortalCaptureError::DecodePng(msg) => {
+                CaptureError::new(CaptureErrorKind::Decode, format!("PNG decode error: {msg}"))
+            }
+            PortalCaptureError::Portal(err) => {
+                CaptureError::new(CaptureErrorKind::Backend, format!("portal error: {err}"))
+                    .with_source(PortalCaptureError::Portal(err))
+            }
+            PortalCaptureError::Io(err) => {
+                CaptureError::new(CaptureErrorKind::Io, format!("I/O error: {err}"))
+                    .with_source(PortalCaptureError::Io(err))
+            }
+        }
+    }
+}
+
 // ── Blocking runtime bridge ──────────────────────────────────────────────────
 //
 // `pollster` cannot drive tokio-based futures because zbus (used by ashpd)
@@ -122,9 +150,9 @@ fn block_on<F: std::future::Future>(fut: F) -> F::Output {
     rt.block_on(fut)
 }
 
-#[cfg(all(feature = "blocking", feature = "async-std"))]
+#[cfg(all(feature = "blocking", feature = "async-io"))]
 fn block_on<F: std::future::Future>(fut: F) -> F::Output {
-    async_std::task::block_on(fut)
+    async_io::block_on(fut)
 }
 
 /// A portal-based screen-capture session.
@@ -187,25 +215,42 @@ impl PortalCapture {
             .response()?;
 
         let uri = response.uri();
+        let uri_str = uri.as_str();
 
-        if uri.scheme() != "file" {
+        if !uri_str.starts_with("file://") {
             return Err(PortalCaptureError::UnsupportedScheme(uri.to_string()));
         }
 
-        let path = uri
-            .to_file_path()
-            .map_err(|()| PortalCaptureError::UnsupportedScheme(uri.to_string()))?;
+        // Parse file:// URI: file://host/path -> /path (host must be empty or "localhost")
+        let path_str = &uri_str["file://".len()..];
+        let path_str = match path_str.find('/') {
+            Some(pos) => &path_str[pos..],
+            None => {
+                return Err(PortalCaptureError::UnsupportedScheme(uri.to_string()));
+            }
+        };
+        let path = percent_decode_str(path_str).decode_utf8().map_err(|e| {
+            PortalCaptureError::UnsupportedScheme(format!("invalid path encoding: {e}"))
+        })?;
+        let path = std::path::Path::new(path.as_ref());
 
-        let mut file = File::open(&path).map_err(PortalCaptureError::Io)?;
+        let mut file = File::open(path).map_err(PortalCaptureError::Io)?;
         let mut buf = Vec::new();
         file.read_to_end(&mut buf).map_err(PortalCaptureError::Io)?;
 
-        let decoder = png::Decoder::new(buf.as_slice());
+        let decoder = png::Decoder::new(std::io::Cursor::new(&buf));
         let mut reader = decoder
             .read_info()
             .map_err(|e| PortalCaptureError::DecodePng(e.to_string()))?;
 
-        let mut img_data = vec![0u8; reader.output_buffer_size()];
+        let mut img_data = vec![
+            0u8;
+            reader.output_buffer_size().ok_or_else(|| {
+                PortalCaptureError::DecodePng(
+                    "png decoder did not report an output buffer size".to_string(),
+                )
+            })?
+        ];
         let info = reader
             .next_frame(&mut img_data)
             .map_err(|e| PortalCaptureError::DecodePng(e.to_string()))?;
@@ -231,19 +276,38 @@ impl PortalCapture {
 }
 
 #[cfg(feature = "blocking")]
-impl ScreenshotProvider for PortalCapture {
-    type Error = PortalCaptureError;
+impl Capture for PortalCapture {
+    type Error = CaptureError;
 
-    fn take_screenshot(&mut self) -> Result<Screenshot, Self::Error> {
-        self.capture_interactive()
+    fn capture(&mut self) -> Result<Screenshot, CaptureError> {
+        self.capture_interactive().map_err(CaptureError::from)
+    }
+}
+
+#[cfg(feature = "blocking")]
+impl MultiCapture for PortalCapture {
+    fn source_count(&self) -> usize {
+        1
+    }
+
+    fn capture_index(&mut self, index: usize) -> Result<Screenshot, CaptureError> {
+        if index != 0 {
+            return Err(CaptureError::new(
+                miniscreenshot::CaptureErrorKind::Unsupported,
+                "portal only supports a single capture (index 0)",
+            ));
+        }
+        self.capture_interactive().map_err(CaptureError::from)
     }
 }
 
 #[cfg(feature = "async")]
-impl AsyncScreenshotProvider for PortalCapture {
-    type Error = PortalCaptureError;
+impl CaptureAsync for PortalCapture {
+    type Error = CaptureError;
 
-    async fn take_screenshot(&mut self) -> Result<Screenshot, Self::Error> {
-        self.capture_interactive_async().await
+    async fn capture(&mut self) -> Result<Screenshot, CaptureError> {
+        self.capture_interactive_async()
+            .await
+            .map_err(CaptureError::from)
     }
 }

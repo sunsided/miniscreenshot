@@ -1,6 +1,6 @@
 [package]
 name = "miniscreenshot"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Core screenshot types: PNG/PPM/PGM encoding and file-saving utilities."
 authors = ["Markus Mayer <widemeadows@gmail.com>"]
@@ -11,7 +11,7 @@ categories = ["multimedia::images", "graphics"]
 readme = "../README.md"
 
 [dependencies]
-png = "0.17"
+png = "0.18"
 
 [dev-dependencies]
 tempfile = "3"

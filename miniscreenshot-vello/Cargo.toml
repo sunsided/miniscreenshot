@@ -1,6 +1,6 @@
 [package]
 name = "miniscreenshot-vello"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Vello screenshot helper for the miniscreenshot ecosystem. Re-exports vello."
 authors = ["Markus Mayer <widemeadows@gmail.com>"]
@@ -11,9 +11,11 @@ categories = ["multimedia::images", "graphics"]
 readme = "../README.md"
 
 [dependencies]
-miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }
-vello = "0.2"
+miniscreenshot = { version = "0.2", path = "../miniscreenshot" }
+# NOTE: miniscreenshot-wgpu depends on wgpu = "28", which matches the wgpu
+# version re-exported by vello = "0.8". Keep them in sync.
+miniscreenshot-wgpu = { version = "0.2", path = "../miniscreenshot-wgpu" }
+vello = "0.8"
 
 [dev-dependencies]
-pollster = "0.3"
-miniscreenshot-wgpu = { path = "../miniscreenshot-wgpu" }
+pollster = "0.4"

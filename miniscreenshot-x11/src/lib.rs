@@ -10,7 +10,7 @@
 //! shot.save("screenshot.png").unwrap();
 //! ```
 
-pub use miniscreenshot::{Screenshot, ScreenshotProvider};
+pub use miniscreenshot::{Capture, CaptureError, MultiCapture, Screenshot};
 pub use x11rb;
 
 use x11rb::connection::{Connection, RequestConnection};
@@ -123,6 +123,39 @@ impl From<x11rb::errors::ReplyOrIdError> for X11CaptureError {
 impl From<std::io::Error> for X11CaptureError {
     fn from(e: std::io::Error) -> Self {
         Self::Io(e)
+    }
+}
+
+impl From<X11CaptureError> for CaptureError {
+    fn from(e: X11CaptureError) -> Self {
+        use miniscreenshot::CaptureErrorKind;
+        match e {
+            X11CaptureError::Connect(err) => {
+                CaptureError::new(CaptureErrorKind::Connect, format!("X11 connection error: {err}"))
+                    .with_source(X11CaptureError::Connect(err))
+            }
+            X11CaptureError::XWaylandDetected => {
+                CaptureError::new(CaptureErrorKind::Connect, "XWayland detected — root window capture returns black. Use the Wayland or Portal crate instead.")
+            }
+            X11CaptureError::ScreenNotFound(i) => {
+                CaptureError::new(CaptureErrorKind::Unsupported, format!("screen index {i} not found"))
+            }
+            X11CaptureError::UnsupportedVisual { depth, bits_per_pixel } => {
+                CaptureError::new(CaptureErrorKind::Unsupported, format!("unsupported visual: depth={depth}, bpp={bits_per_pixel}"))
+            }
+            X11CaptureError::Connection(err) => {
+                CaptureError::new(CaptureErrorKind::Backend, format!("X11 connection error: {err}"))
+                    .with_source(X11CaptureError::Connection(err))
+            }
+            X11CaptureError::Reply(err) => {
+                CaptureError::new(CaptureErrorKind::Backend, format!("X11 reply error: {err}"))
+                    .with_source(X11CaptureError::Reply(err))
+            }
+            X11CaptureError::Io(err) => {
+                CaptureError::new(CaptureErrorKind::Io, format!("I/O error: {err}"))
+                    .with_source(X11CaptureError::Io(err))
+            }
+        }
     }
 }
 
@@ -369,12 +402,22 @@ fn convert_to_rgba(
     }
 }
 
-// ── ScreenshotProvider ────────────────────────────────────────────────────────
+// ── Capture ────────────────────────────────────────────────────────────────
 
-impl ScreenshotProvider for X11Capture {
-    type Error = X11CaptureError;
+impl Capture for X11Capture {
+    type Error = CaptureError;
 
-    fn take_screenshot(&mut self) -> Result<Screenshot, Self::Error> {
-        self.capture_screen(0)
+    fn capture(&mut self) -> Result<Screenshot, CaptureError> {
+        self.capture_screen(0).map_err(CaptureError::from)
+    }
+}
+
+impl MultiCapture for X11Capture {
+    fn source_count(&self) -> usize {
+        self.screen_count()
+    }
+
+    fn capture_index(&mut self, index: usize) -> Result<Screenshot, CaptureError> {
+        self.capture_screen(index).map_err(CaptureError::from)
     }
 }

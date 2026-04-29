@@ -10,11 +10,50 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  fmt-clippy-test:
+  fmt:
+    name: Format check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+  baseline-clippy:
+    name: Baseline clippy
+    needs: fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - name: Clippy (baseline crate, no features)
+        run: cargo clippy -p miniscreenshot --no-default-features -- -D warnings
+
+  examples:
+    name: Example - ${{ matrix.example.name }} (${{ matrix.toolchain }})
+    needs: [fmt, baseline-clippy]
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         toolchain: [stable, 1.87.0]
+        example:
+          - { name: core, crate: miniscreenshot, example: core_scene_screenshot, features: "" }
+          - { name: softbuffer, crate: miniscreenshot-softbuffer, example: softbuffer_scene_screenshot, features: "" }
+          - { name: softbuffer+winit, crate: miniscreenshot-softbuffer, example: softbuffer_winit_scene_screenshot, features: "--features winit" }
+          - { name: wgpu, crate: miniscreenshot-wgpu, example: wgpu_scene_screenshot, features: "" }
+          - { name: wayland, crate: miniscreenshot-wayland, example: wayland_scene_screenshot, features: "" }
+          - { name: x11, crate: miniscreenshot-x11, example: x11_scene_screenshot, features: "" }
+          - { name: skia, crate: miniscreenshot-skia, example: skia_scene_screenshot, features: "" }
+          - { name: vello, crate: miniscreenshot-vello, example: vello_scene_screenshot, features: "" }
+          - { name: portal, crate: miniscreenshot-portal, example: portal_scene_screenshot, features: "" }
+          - { name: portal+async, crate: miniscreenshot-portal, example: portal_async_scene_screenshot, features: "--features async" }
 
     steps:
       - uses: actions/checkout@v4
@@ -22,15 +61,15 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
-          components: rustfmt, clippy
-      - name: Format check
-        run: cargo fmt --all --check
+          components: clippy
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@v2
       - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy -p ${{ matrix.example.crate }} --example ${{ matrix.example.example }} ${{ matrix.example.features }} -- -D warnings
       - name: Build
-        run: cargo build --workspace --verbose
+        run: cargo build -p ${{ matrix.example.crate }} --example ${{ matrix.example.example }} ${{ matrix.example.features }} --verbose
       - name: Test
-        run: cargo test --workspace --verbose
+        run: cargo test -p ${{ matrix.example.crate }} --example ${{ matrix.example.example }} ${{ matrix.example.features }} --verbose
 
   dependencies:
     name: Dependency Submission

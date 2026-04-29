@@ -10,11 +10,11 @@
 //! | Feature | Description |
 //! |---------|-------------|
 //! | `tokio` (default) | Use tokio as the async runtime for ashpd |
-//! | `async-std` | Use async-std as the async runtime for ashpd |
+//! | `async-io` | Use async-io as the async runtime for ashpd |
 //! | `blocking` (default) | Enable blocking convenience methods via `pollster` |
 //! | `async` | Enable `CaptureAsync` trait impl |
 //!
-//! Exactly one of `tokio` or `async-std` must be enabled.
+//! Exactly one of `tokio` or `async-io` must be enabled.
 //!
 //! # Example (blocking)
 //!
@@ -40,11 +40,11 @@
 //! }
 //! ```
 
-#[cfg(all(feature = "tokio", feature = "async-std"))]
-compile_error!("Enable exactly one of `tokio` or `async-std` on miniscreenshot-portal.");
+#[cfg(all(feature = "tokio", feature = "async-io"))]
+compile_error!("Enable exactly one of `tokio` or `async-io` on miniscreenshot-portal.");
 
-#[cfg(not(any(feature = "tokio", feature = "async-std")))]
-compile_error!("Enable one of `tokio` or `async-std` on miniscreenshot-portal.");
+#[cfg(not(any(feature = "tokio", feature = "async-io")))]
+compile_error!("Enable one of `tokio` or `async-io` on miniscreenshot-portal.");
 
 pub use ashpd;
 #[cfg(feature = "async")]
@@ -149,9 +149,9 @@ fn block_on<F: std::future::Future>(fut: F) -> F::Output {
     rt.block_on(fut)
 }
 
-#[cfg(all(feature = "blocking", feature = "async-std"))]
+#[cfg(all(feature = "blocking", feature = "async-io"))]
 fn block_on<F: std::future::Future>(fut: F) -> F::Output {
-    async_std::task::block_on(fut)
+    async_io::block_on(fut)
 }
 
 /// A portal-based screen-capture session.
@@ -214,25 +214,24 @@ impl PortalCapture {
             .response()?;
 
         let uri = response.uri();
+        let uri_str = uri.as_str();
 
-        if uri.scheme() != "file" {
+        if !uri_str.starts_with("file://") {
             return Err(PortalCaptureError::UnsupportedScheme(uri.to_string()));
         }
 
-        let path = uri
-            .to_file_path()
-            .map_err(|()| PortalCaptureError::UnsupportedScheme(uri.to_string()))?;
+        let path = std::path::Path::new(&uri_str["file://".len()..]);
 
-        let mut file = File::open(&path).map_err(PortalCaptureError::Io)?;
+        let mut file = File::open(path).map_err(PortalCaptureError::Io)?;
         let mut buf = Vec::new();
         file.read_to_end(&mut buf).map_err(PortalCaptureError::Io)?;
 
-        let decoder = png::Decoder::new(buf.as_slice());
+        let decoder = png::Decoder::new(std::io::Cursor::new(&buf));
         let mut reader = decoder
             .read_info()
             .map_err(|e| PortalCaptureError::DecodePng(e.to_string()))?;
 
-        let mut img_data = vec![0u8; reader.output_buffer_size()];
+        let mut img_data = vec![0u8; reader.output_buffer_size().expect("output_buffer_size")];
         let info = reader
             .next_frame(&mut img_data)
             .map_err(|e| PortalCaptureError::DecodePng(e.to_string()))?;

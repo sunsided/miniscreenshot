@@ -539,9 +539,9 @@ mod tests {
         let png_bytes = original.encode_png().unwrap();
 
         // Decode with the `png` crate and compare pixel data
-        let decoder = png::Decoder::new(png_bytes.as_slice());
+        let decoder = png::Decoder::new(std::io::Cursor::new(&png_bytes));
         let mut reader = decoder.read_info().unwrap();
-        let mut decoded = vec![0u8; reader.output_buffer_size()];
+        let mut decoded = vec![0u8; reader.output_buffer_size().expect("output_buffer_size")];
         let info = reader.next_frame(&mut decoded).unwrap();
         decoded.truncate(info.buffer_size());
 

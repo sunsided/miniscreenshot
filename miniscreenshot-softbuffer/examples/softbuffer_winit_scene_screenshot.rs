@@ -1,4 +1,4 @@
-use miniscreenshot_softbuffer::screenshot_from_xrgb;
+use miniscreenshot_softbuffer::capture;
 use miniscreenshot_softbuffer::softbuffer;
 use miniscreenshot_softbuffer::winit;
 use miniscreenshot_softbuffer::winit::application::ApplicationHandler;
@@ -88,7 +88,7 @@ impl ApplicationHandler for App {
                 }
                 let _ = buffer.present();
 
-                let shot = screenshot_from_xrgb(&pixels, w, h);
+                let shot = capture(&pixels, w, h);
                 let path = "winit_screenshot.png";
                 shot.save(path).expect("failed to save screenshot");
                 println!("saved {path}");

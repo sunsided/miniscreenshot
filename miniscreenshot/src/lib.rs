@@ -391,6 +391,12 @@ pub type BoxedCapture = Box<dyn Capture<Error = CaptureError> + Send>;
 /// Convenience type alias for dynamic dispatch over `MultiCapture`.
 pub type DynMultiCapture = dyn MultiCapture<Error = CaptureError>;
 
+/// Convenience type alias for dynamic dispatch over `CaptureAsync`.
+pub type DynCaptureAsync = dyn CaptureAsync<Error = CaptureError>;
+
+/// Convenience type alias for a boxed, Send-able `CaptureAsync`.
+pub type BoxedCaptureAsync = Box<dyn CaptureAsync<Error = CaptureError> + Send>;
+
 // ── Error types ──────────────────────────────────────────────────────────────
 
 /// An error that occurred while encoding a screenshot.

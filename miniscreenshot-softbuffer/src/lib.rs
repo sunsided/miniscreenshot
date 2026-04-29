@@ -36,6 +36,8 @@ pub use winit;
 
 pub use miniscreenshot::{Capture, CaptureError, Screenshot};
 
+use std::fmt;
+
 /// Pixel layout used by softbuffer pixel data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SoftbufferPixelFormat {
@@ -43,6 +45,40 @@ pub enum SoftbufferPixelFormat {
     Xrgb,
     /// ARGB8888 — alpha packed in the high byte.
     Argb,
+}
+
+/// Error returned when capturing from a softbuffer pixel buffer fails.
+#[derive(Debug)]
+pub enum SoftbufferCaptureError {
+    /// The pixel count does not match the declared dimensions.
+    DimensionMismatch { expected: usize, actual: usize },
+}
+
+impl fmt::Display for SoftbufferCaptureError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SoftbufferCaptureError::DimensionMismatch { expected, actual } => {
+                write!(
+                    f,
+                    "dimension mismatch: expected {expected} pixels, got {actual}"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for SoftbufferCaptureError {}
+
+impl From<SoftbufferCaptureError> for CaptureError {
+    fn from(e: SoftbufferCaptureError) -> Self {
+        match e {
+            SoftbufferCaptureError::DimensionMismatch { expected, actual } => CaptureError::new(
+                miniscreenshot::CaptureErrorKind::Unsupported,
+                format!("dimension mismatch: expected {expected} pixels, got {actual}"),
+            )
+            .with_source(SoftbufferCaptureError::DimensionMismatch { expected, actual }),
+        }
+    }
 }
 
 /// Borrowed view over a softbuffer pixel buffer that implements [`Capture`].
@@ -76,18 +112,14 @@ impl<'a> SoftbufferCapture<'a> {
 }
 
 impl Capture for SoftbufferCapture<'_> {
-    type Error = CaptureError;
+    type Error = SoftbufferCaptureError;
 
-    fn capture(&mut self) -> Result<Screenshot, CaptureError> {
+    fn capture(&mut self) -> Result<Screenshot, SoftbufferCaptureError> {
         if self.pixels.len() != (self.width as usize) * (self.height as usize) {
-            return Err(CaptureError::new(
-                miniscreenshot::CaptureErrorKind::Unsupported,
-                format!(
-                    "pixel count mismatch: expected {} but got {}",
-                    (self.width as usize) * (self.height as usize),
-                    self.pixels.len()
-                ),
-            ));
+            return Err(SoftbufferCaptureError::DimensionMismatch {
+                expected: (self.width as usize) * (self.height as usize),
+                actual: self.pixels.len(),
+            });
         }
         let rgba: Vec<u8> = self
             .pixels
@@ -210,5 +242,19 @@ mod tests {
     #[should_panic]
     fn xrgb_wrong_size_panics() {
         capture(&[0u32; 5], 2, 2);
+    }
+
+    #[test]
+    fn struct_capture_returns_domain_error() {
+        let pixels = [0u32; 5];
+        let mut cap = SoftbufferCapture::new(&pixels, 2, 2);
+        let err = cap.capture().unwrap_err();
+        assert!(matches!(
+            err,
+            SoftbufferCaptureError::DimensionMismatch {
+                expected: 4,
+                actual: 5
+            }
+        ));
     }
 }

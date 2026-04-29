@@ -24,6 +24,37 @@ pub use miniscreenshot::{Capture, CaptureError, Screenshot};
 /// mismatches.
 pub use skia_safe;
 
+/// Error returned when capturing from a Skia surface fails.
+#[derive(Debug)]
+pub enum SkiaCaptureError {
+    /// The surface pixel readback failed.
+    ReadPixelsFailed,
+}
+
+impl std::fmt::Display for SkiaCaptureError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SkiaCaptureError::ReadPixelsFailed => {
+                write!(f, "Skia surface pixel readback failed")
+            }
+        }
+    }
+}
+
+impl std::error::Error for SkiaCaptureError {}
+
+impl From<SkiaCaptureError> for CaptureError {
+    fn from(e: SkiaCaptureError) -> Self {
+        match e {
+            SkiaCaptureError::ReadPixelsFailed => CaptureError::new(
+                miniscreenshot::CaptureErrorKind::Backend,
+                "Skia surface pixel readback failed",
+            )
+            .with_source(SkiaCaptureError::ReadPixelsFailed),
+        }
+    }
+}
+
 /// Borrowed view over a Skia [`skia_safe::Surface`] that implements [`Capture`].
 ///
 /// The surface is borrowed mutably because `read_pixels` requires a mutable
@@ -41,25 +72,30 @@ impl<'a> SkiaCapture<'a> {
 }
 
 impl Capture for SkiaCapture<'_> {
-    type Error = CaptureError;
+    type Error = SkiaCaptureError;
 
-    fn capture(&mut self) -> Result<Screenshot, CaptureError> {
-        Ok(capture(self.surface))
+    fn capture(&mut self) -> Result<Screenshot, SkiaCaptureError> {
+        capture(self.surface)
     }
 }
 
 /// Read RGBA8 pixel data from a `skia_safe::Surface` and return a
 /// [`Screenshot`].
 ///
+/// # Errors
+///
+/// Returns [`SkiaCaptureError::ReadPixelsFailed`] if the surface pixel
+/// readback fails.
+///
 /// # Example
 ///
 /// ```rust,ignore
 /// use miniscreenshot_skia::capture;
 ///
-/// let screenshot = capture(&mut surface);
+/// let screenshot = capture(&mut surface)?;
 /// screenshot.save("output.png").unwrap();
 /// ```
-pub fn capture(surface: &mut skia_safe::Surface) -> Screenshot {
+pub fn capture(surface: &mut skia_safe::Surface) -> Result<Screenshot, SkiaCaptureError> {
     let info = surface.image_info();
     let width = info.width() as u32;
     let height = info.height() as u32;
@@ -72,11 +108,13 @@ pub fn capture(surface: &mut skia_safe::Surface) -> Screenshot {
         skia_safe::AlphaType::Premul,
         None,
     );
-    surface.read_pixels(
+    if !surface.read_pixels(
         &dst_info,
         &mut pixels,
         row_bytes,
         skia_safe::IPoint::new(0, 0),
-    );
-    Screenshot::from_rgba(width, height, pixels)
+    ) {
+        return Err(SkiaCaptureError::ReadPixelsFailed);
+    }
+    Ok(Screenshot::from_rgba(width, height, pixels))
 }

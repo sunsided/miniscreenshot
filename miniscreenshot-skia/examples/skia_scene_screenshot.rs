@@ -16,7 +16,7 @@ fn main() {
     paint.set_color(Color::from_rgb(50, 200, 255));
     canvas.draw_rect(Rect::new(30.0, 30.0, 200.0, 200.0), &paint);
 
-    let shot = capture(&mut surface);
+    let shot = capture(&mut surface).expect("failed to capture screenshot");
     let path = "skia_screenshot.png";
     shot.save(path).expect("failed to save screenshot");
     println!("saved {path}");

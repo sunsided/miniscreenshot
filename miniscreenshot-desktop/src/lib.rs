@@ -27,7 +27,18 @@
 //! | X11 | `$DISPLAY` set, not XWayland | Uses MIT-SHM when available |
 //! | Portal | Always available | May show a confirmation dialog
 
-use miniscreenshot::{Capture, CaptureError, Screenshot};
+use miniscreenshot::{Capture, CaptureError, MultiCapture, Screenshot};
+
+/// Identifies which backend was selected by [`select_backend`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BackendKind {
+    /// Wayland screencopy (wlroots-based compositors).
+    Wayland,
+    /// X11 via MIT-SHM.
+    X11,
+    /// XDG Desktop Portal (GNOME, KDE, Flatpak, Snap).
+    Portal,
+}
 
 /// Attempt to capture a screenshot using the best available backend.
 ///
@@ -79,4 +90,49 @@ pub fn take() -> Result<Screenshot, CaptureError> {
                 .collect::<String>()
         ),
     ))
+}
+
+/// Select the best available backend for multi-monitor capture.
+///
+/// Probes backends in the same order as [`take`] (Wayland → X11 → Portal)
+/// and returns a boxed [`DynMultiCapture`] so the caller can enumerate
+/// monitors or call [`MultiCapture::capture_all`].
+///
+/// Returns [`BackendKind`] alongside the capture session so callers know
+/// which backend was selected.
+pub fn select_backend(
+) -> Result<(BackendKind, Box<dyn MultiCapture<Error = CaptureError>>), CaptureError> {
+    // Try Wayland first
+    if std::env::var("WAYLAND_DISPLAY").is_ok() {
+        if let Ok(cap) = miniscreenshot_wayland::WaylandCapture::connect() {
+            let count = cap.source_count();
+            if count > 0 {
+                return Ok((BackendKind::Wayland, Box::new(cap)));
+            }
+        }
+    }
+
+    // Try X11
+    if std::env::var("DISPLAY").is_ok() {
+        if let Ok(cap) = miniscreenshot_x11::X11Capture::connect() {
+            let count = cap.source_count();
+            if count > 0 {
+                return Ok((BackendKind::X11, Box::new(cap)));
+            }
+        }
+    }
+
+    // Fall back to Portal
+    let portal = miniscreenshot_portal::PortalCapture::connect();
+    Ok((BackendKind::Portal, Box::new(portal)))
+}
+
+/// Capture all available outputs using the best available backend.
+///
+/// This is a convenience wrapper around [`select_backend`] that returns
+/// screenshots from every detected monitor.
+pub fn take_all() -> Result<(BackendKind, Vec<Screenshot>), CaptureError> {
+    let (kind, mut cap) = select_backend()?;
+    let shots = cap.capture_all()?;
+    Ok((kind, shots))
 }

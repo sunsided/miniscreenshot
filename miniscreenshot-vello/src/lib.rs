@@ -28,6 +28,37 @@ pub use miniscreenshot::{Capture, CaptureError, Screenshot};
 /// mismatches.
 pub use vello;
 
+/// Error returned when capturing from a Vello-rendered texture fails.
+#[derive(Debug)]
+pub enum VelloCaptureError {
+    /// The capture is not yet implemented.
+    NotImplemented,
+}
+
+impl std::fmt::Display for VelloCaptureError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            VelloCaptureError::NotImplemented => {
+                write!(f, "Vello capture is not yet implemented")
+            }
+        }
+    }
+}
+
+impl std::error::Error for VelloCaptureError {}
+
+impl From<VelloCaptureError> for CaptureError {
+    fn from(e: VelloCaptureError) -> Self {
+        match e {
+            VelloCaptureError::NotImplemented => CaptureError::new(
+                miniscreenshot::CaptureErrorKind::Backend,
+                "Vello capture is not yet implemented",
+            )
+            .with_source(VelloCaptureError::NotImplemented),
+        }
+    }
+}
+
 /// Borrowed view over a Vello-rendered texture that implements [`Capture`].
 ///
 /// # Stub
@@ -56,24 +87,26 @@ impl<'a> VelloCapture<'a> {
 }
 
 impl Capture for VelloCapture<'_> {
-    type Error = CaptureError;
+    type Error = VelloCaptureError;
 
-    fn capture(&mut self) -> Result<Screenshot, CaptureError> {
-        Ok(capture(self.device, self.queue, self.texture))
+    fn capture(&mut self) -> Result<Screenshot, VelloCaptureError> {
+        capture(self.device, self.queue, self.texture)
     }
 }
 
 /// Capture a screenshot from a Vello-rendered texture.
 ///
-/// TODO: Implement Vello-specific capture logic. For now, use
-/// `miniscreenshot-wgpu::capture` with the texture produced by Vello.
+/// # Errors
+///
+/// Returns [`VelloCaptureError::NotImplemented`] as the Vello-specific
+/// capture logic is not yet implemented. Use
+/// `miniscreenshot-wgpu::capture` with the Vello output texture instead.
 pub fn capture(
     _device: &vello::wgpu::Device,
     _queue: &vello::wgpu::Queue,
     _texture: &vello::wgpu::Texture,
-) -> Screenshot {
+) -> Result<Screenshot, VelloCaptureError> {
     // TODO: Implement Vello-specific capture logic.
-    // For now, return an empty 1×1 black screenshot.
-    // Use `miniscreenshot_wgpu::capture` with the Vello output texture instead.
-    Screenshot::from_rgba(1, 1, vec![0, 0, 0, 255])
+    // For now, return an error — use `miniscreenshot_wgpu::capture` with the Vello output texture instead.
+    Err(VelloCaptureError::NotImplemented)
 }

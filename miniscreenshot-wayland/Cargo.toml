@@ -3,6 +3,7 @@ name = "miniscreenshot-wayland"
 version = "0.1.0"
 edition = "2021"
 description = "Wayland (wlr-screencopy-v1) screenshot helper for the miniscreenshot ecosystem."
+authors = ["Markus Mayer <widemeadows@gmail.com>"]
 license = "EUPL-1.2 OR MIT OR Apache-2.0"
 repository = "https://github.com/sunsided/miniscreenshot"
 keywords = ["screenshot", "wayland", "wlr-screencopy"]

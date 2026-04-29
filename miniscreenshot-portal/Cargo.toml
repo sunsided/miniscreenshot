@@ -3,6 +3,7 @@ name = "miniscreenshot-portal"
 version = "0.1.0"
 edition = "2021"
 description = "XDG Desktop Portal (ashpd) screenshot helper for the miniscreenshot ecosystem. Works on GNOME, KDE, and wlroots-based compositors, and inside Flatpak/Snap sandboxes."
+authors = ["Markus Mayer <widemeadows@gmail.com>"]
 license = "EUPL-1.2 OR MIT OR Apache-2.0"
 repository = "https://github.com/sunsided/miniscreenshot"
 keywords = ["screenshot", "xdg", "portal", "ashpd", "wayland"]

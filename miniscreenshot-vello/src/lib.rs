@@ -11,7 +11,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! miniscreenshot-vello = "0.1"
+//! miniscreenshot-vello = "0.2"
 //! ```
 //!
 //! Then access the re-exported crate:
@@ -20,10 +20,25 @@
 //! use miniscreenshot_vello::vello;
 //! ```
 
-pub use miniscreenshot::{Screenshot, ScreenshotProvider};
+pub use miniscreenshot::Screenshot;
 
 /// Re-export of `vello`.
 ///
 /// Use this instead of a direct `vello` dependency to avoid version
 /// mismatches.
 pub use vello;
+
+/// Capture a screenshot from a Vello-rendered texture.
+///
+/// TODO: Implement Vello-specific capture logic. For now, use
+/// `miniscreenshot-wgpu::capture` with the texture produced by Vello.
+pub fn capture(
+    _device: &vello::wgpu::Device,
+    _queue: &vello::wgpu::Queue,
+    _texture: &vello::wgpu::Texture,
+) -> Screenshot {
+    // TODO: Implement Vello-specific capture logic.
+    // For now, return an empty 1×1 black screenshot.
+    // Use `miniscreenshot_wgpu::capture` with the Vello output texture instead.
+    Screenshot::from_rgba(1, 1, vec![0, 0, 0, 255])
+}

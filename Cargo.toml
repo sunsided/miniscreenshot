@@ -9,5 +9,6 @@ members = [
     "miniscreenshot-x11",
     "miniscreenshot-portal",
     "miniscreenshot-minifb",
+    "miniscreenshot-desktop",
 ]
 resolver = "2"

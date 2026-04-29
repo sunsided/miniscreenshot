@@ -22,7 +22,7 @@
 //! shot.save("screenshot.png").unwrap();
 //! ```
 
-pub use miniscreenshot::{Screenshot, ScreenshotProvider};
+pub use miniscreenshot::{Capture, MultiCapture, Screenshot};
 pub use wayland_client;
 pub use wayland_protocols_wlr;
 
@@ -455,4 +455,24 @@ fn convert_to_rgba(
         }
     }
     Some(Screenshot::from_rgba(width, height, rgba))
+}
+
+// ── Capture ──────────────────────────────────────────────────────────────────
+
+impl Capture for WaylandCapture {
+    type Error = WaylandCaptureError;
+
+    fn capture(&mut self) -> Result<Screenshot, Self::Error> {
+        self.capture_output(0)
+    }
+}
+
+impl MultiCapture for WaylandCapture {
+    fn source_count(&self) -> usize {
+        self.output_count()
+    }
+
+    fn capture_index(&mut self, index: usize) -> Result<Screenshot, Self::Error> {
+        self.capture_output(index)
+    }
 }

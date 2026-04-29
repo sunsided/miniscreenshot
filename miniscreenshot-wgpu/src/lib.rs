@@ -25,7 +25,7 @@
 /// version compatibility across the workspace.
 pub use wgpu;
 
-pub use miniscreenshot::{Screenshot, ScreenshotProvider};
+pub use miniscreenshot::{Capture, Screenshot};
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -79,7 +79,7 @@ impl std::error::Error for CaptureError {
 ///
 /// This function calls [`wgpu::Device::poll`] with [`wgpu::Maintain::Wait`],
 /// which blocks the current thread until the GPU work is complete.
-pub fn capture_texture(
+pub fn capture(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     texture: &wgpu::Texture,

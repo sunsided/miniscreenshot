@@ -1,6 +1,6 @@
 [package]
 name = "miniscreenshot-wgpu"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "wgpu screenshot helper for the miniscreenshot ecosystem. Re-exports wgpu."
 authors = ["Markus Mayer <widemeadows@gmail.com>"]
@@ -11,7 +11,7 @@ categories = ["multimedia::images", "graphics"]
 readme = "../README.md"
 
 [dependencies]
-miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }
+miniscreenshot = { version = "0.2", path = "../miniscreenshot" }
 wgpu = "0.20"
 
 [dev-dependencies]

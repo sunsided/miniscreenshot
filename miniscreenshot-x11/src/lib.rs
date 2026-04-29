@@ -10,7 +10,7 @@
 //! shot.save("screenshot.png").unwrap();
 //! ```
 
-pub use miniscreenshot::{Screenshot, ScreenshotProvider};
+pub use miniscreenshot::{Capture, MultiCapture, Screenshot};
 pub use x11rb;
 
 use x11rb::connection::{Connection, RequestConnection};
@@ -369,12 +369,22 @@ fn convert_to_rgba(
     }
 }
 
-// ── ScreenshotProvider ────────────────────────────────────────────────────────
+// ── Capture ────────────────────────────────────────────────────────────────
 
-impl ScreenshotProvider for X11Capture {
+impl Capture for X11Capture {
     type Error = X11CaptureError;
 
-    fn take_screenshot(&mut self) -> Result<Screenshot, Self::Error> {
+    fn capture(&mut self) -> Result<Screenshot, Self::Error> {
         self.capture_screen(0)
+    }
+}
+
+impl MultiCapture for X11Capture {
+    fn source_count(&self) -> usize {
+        self.screen_count()
+    }
+
+    fn capture_index(&mut self, index: usize) -> Result<Screenshot, Self::Error> {
+        self.capture_screen(index)
     }
 }

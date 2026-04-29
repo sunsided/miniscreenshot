@@ -1,0 +1,17 @@
+[package]
+name = "miniscreenshot-desktop"
+version = "0.2.0"
+edition = "2021"
+description = "Automatic desktop screenshot capture: tries Wayland → X11 → Portal."
+authors = ["Markus Mayer <widemeadows@gmail.com>"]
+license = "EUPL-1.2 OR MIT OR Apache-2.0"
+repository = "https://github.com/sunsided/miniscreenshot"
+keywords = ["screenshot", "desktop", "wayland", "x11", "portal"]
+categories = ["multimedia::images", "graphics"]
+readme = "../README.md"
+
+[dependencies]
+miniscreenshot = { version = "0.2", path = "../miniscreenshot" }
+miniscreenshot-wayland = { version = "0.2", path = "../miniscreenshot-wayland" }
+miniscreenshot-x11 = { version = "0.2", path = "../miniscreenshot-x11" }
+miniscreenshot-portal = { version = "0.2", path = "../miniscreenshot-portal", default-features = false, features = ["blocking"] }

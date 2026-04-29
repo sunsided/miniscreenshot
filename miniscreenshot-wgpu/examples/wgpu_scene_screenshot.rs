@@ -1,4 +1,4 @@
-use miniscreenshot_wgpu::capture_texture;
+use miniscreenshot_wgpu::capture;
 use miniscreenshot_wgpu::wgpu;
 
 const SHADER: &str = r#"
@@ -114,7 +114,7 @@ fn main() {
 
     queue.submit(std::iter::once(encoder.finish()));
 
-    let shot = capture_texture(&device, &queue, &texture).expect("failed to capture texture");
+    let shot = capture(&device, &queue, &texture).expect("failed to capture texture");
     let path = "wgpu_screenshot.png";
     shot.save(path).expect("failed to save screenshot");
     println!("saved {path}");

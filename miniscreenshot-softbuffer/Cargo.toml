@@ -1,6 +1,6 @@
 [package]
 name = "miniscreenshot-softbuffer"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "softbuffer screenshot helper for the miniscreenshot ecosystem. Re-exports softbuffer."
 authors = ["Markus Mayer <widemeadows@gmail.com>"]
@@ -11,7 +11,7 @@ categories = ["multimedia::images", "graphics"]
 readme = "../README.md"
 
 [dependencies]
-miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }
+miniscreenshot = { version = "0.2", path = "../miniscreenshot" }
 softbuffer = "0.4"
 winit = { version = "0.30", optional = true }
 

@@ -16,7 +16,7 @@
 //! use miniscreenshot_skia::skia_safe;
 //! ```
 
-pub use miniscreenshot::{Screenshot, ScreenshotProvider};
+pub use miniscreenshot::{Capture, Screenshot};
 
 /// Re-export of `skia-safe`.
 ///
@@ -30,12 +30,12 @@ pub use skia_safe;
 /// # Example
 ///
 /// ```rust,ignore
-/// use miniscreenshot_skia::screenshot_from_surface;
+/// use miniscreenshot_skia::capture;
 ///
-/// let screenshot = screenshot_from_surface(&mut surface);
+/// let screenshot = capture(&mut surface);
 /// screenshot.save("output.png").unwrap();
 /// ```
-pub fn screenshot_from_surface(surface: &mut skia_safe::Surface) -> Screenshot {
+pub fn capture(surface: &mut skia_safe::Surface) -> Screenshot {
     let info = surface.image_info();
     let width = info.width() as u32;
     let height = info.height() as u32;

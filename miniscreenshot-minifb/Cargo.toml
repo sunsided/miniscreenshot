@@ -11,5 +11,5 @@ categories = ["multimedia::images", "graphics"]
 readme = "../README.md"
 
 [dependencies]
-miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }
+miniscreenshot = { version = "0.2", path = "../miniscreenshot" }
 minifb = "0.28"

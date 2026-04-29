@@ -34,7 +34,7 @@ pub use softbuffer;
 /// without pulling in a conflicting winit version.
 pub use winit;
 
-pub use miniscreenshot::{Screenshot, ScreenshotProvider};
+pub use miniscreenshot::{Capture, Screenshot};
 
 /// Convert a softbuffer pixel buffer into a [`Screenshot`].
 ///
@@ -51,7 +51,7 @@ pub use miniscreenshot::{Screenshot, ScreenshotProvider};
 /// # Panics
 ///
 /// Panics if `pixels.len() != width as usize * height as usize`.
-pub fn screenshot_from_xrgb(pixels: &[u32], width: u32, height: u32) -> Screenshot {
+pub fn capture(pixels: &[u32], width: u32, height: u32) -> Screenshot {
     assert_eq!(
         pixels.len(),
         width as usize * height as usize,
@@ -78,7 +78,7 @@ pub fn screenshot_from_xrgb(pixels: &[u32], width: u32, height: u32) -> Screensh
 /// # Panics
 ///
 /// Panics if `pixels.len() != width as usize * height as usize`.
-pub fn screenshot_from_argb(pixels: &[u32], width: u32, height: u32) -> Screenshot {
+pub fn capture_argb(pixels: &[u32], width: u32, height: u32) -> Screenshot {
     assert_eq!(
         pixels.len(),
         width as usize * height as usize,
@@ -107,7 +107,7 @@ mod tests {
     #[test]
     fn xrgb_pure_red() {
         let pixels = vec![0x00FF0000u32; 4]; // XRGB: X=0, R=255, G=0, B=0
-        let shot = screenshot_from_xrgb(&pixels, 2, 2);
+        let shot = capture(&pixels, 2, 2);
         assert_eq!(shot.width(), 2);
         assert_eq!(shot.height(), 2);
         // Every pixel should be [R=255, G=0, B=0, A=255]
@@ -119,20 +119,20 @@ mod tests {
     #[test]
     fn xrgb_alpha_forced_to_255() {
         let pixels = vec![0xFF000000u32]; // X byte set but should be ignored
-        let shot = screenshot_from_xrgb(&pixels, 1, 1);
+        let shot = capture(&pixels, 1, 1);
         assert_eq!(shot.data()[3], 255); // alpha is always 255
     }
 
     #[test]
     fn argb_preserves_alpha() {
         let pixels = vec![0x80FF0000u32]; // A=128, R=255, G=0, B=0
-        let shot = screenshot_from_argb(&pixels, 1, 1);
+        let shot = capture_argb(&pixels, 1, 1);
         assert_eq!(shot.data(), &[255, 0, 0, 128]);
     }
 
     #[test]
     #[should_panic]
     fn xrgb_wrong_size_panics() {
-        screenshot_from_xrgb(&[0u32; 5], 2, 2);
+        capture(&[0u32; 5], 2, 2);
     }
 }

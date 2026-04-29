@@ -2,7 +2,8 @@
 //!
 //! This crate provides the fundamental [`Screenshot`] type along with PNG,
 //! PPM, and PGM encoding, and file-saving utilities. It also exposes the
-//! [`ScreenshotProvider`] trait that all driver crates implement.
+//! [`Capture`], [`CaptureAsync`], and [`MultiCapture`] traits that driver
+//! crates implement.
 //!
 //! # Quick start
 //!
@@ -217,59 +218,81 @@ impl Screenshot {
     }
 }
 
-// ── ScreenshotProvider trait ─────────────────────────────────────────────────
+// ── Capture trait ────────────────────────────────────────────────────────────
 
-/// A source that can capture a screenshot.
+/// A self-contained screenshot source (e.g. a system capture session).
 ///
-/// Driver crates (`miniscreenshot-softbuffer`, `miniscreenshot-wgpu`, …)
-/// implement this trait so they can be used interchangeably.
-pub trait ScreenshotProvider {
+/// Implemented by providers that already hold everything needed to produce a
+/// screenshot on demand. Driver crates (`miniscreenshot-wayland`,
+/// `miniscreenshot-x11`, `miniscreenshot-portal`, …) implement this trait so
+/// they can be used interchangeably.
+///
+/// A blanket implementation is provided for `FnMut() -> Result<Screenshot, E>`,
+/// so free functions like `miniscreenshot_wgpu::capture(&device, &queue,
+/// &texture)` can be used as trait objects via a closure:
+///
+/// ```rust,ignore
+/// let mut cap = || miniscreenshot_wgpu::capture(&device, &queue, &texture);
+/// take_and_save(&mut cap);
+/// ```
+pub trait Capture {
     /// The error type returned when capture fails.
     type Error;
 
     /// Capture a screenshot from this source.
-    fn take_screenshot(&mut self) -> Result<Screenshot, Self::Error>;
+    fn capture(&mut self) -> Result<Screenshot, Self::Error>;
 }
 
-// ── AsyncScreenshotProvider trait ────────────────────────────────────────────
+/// A blanket impl: any `FnMut` that returns `Result<Screenshot, E>` is a
+/// `Capture`. This removes the need for wrapper structs when the per-call
+/// state (device, queue, texture, surface, etc.) is captured in the closure
+/// body.
+impl<F, E> Capture for F
+where
+    F: FnMut() -> Result<Screenshot, E>,
+{
+    type Error = E;
+    fn capture(&mut self) -> Result<Screenshot, E> {
+        (self)()
+    }
+}
+
+// ── CaptureAsync trait ──────────────────────────────────────────────────────
 
 /// An async-capable source that can capture a screenshot.
 ///
-/// This trait mirrors [`ScreenshotProvider`] but uses an `async fn` via
-/// return-position `impl Trait` in trait (RPITIT), allowing driver crates
-/// such as `miniscreenshot-portal` to expose natively async APIs without
-/// boxing futures.
-pub trait AsyncScreenshotProvider {
+/// This trait mirrors [`Capture`] but uses an `async fn` via return-position
+/// `impl Trait` in trait (RPITIT), allowing driver crates such as
+/// `miniscreenshot-portal` to expose natively async APIs without boxing futures.
+pub trait CaptureAsync {
     /// The error type returned when capture fails.
     type Error;
 
     /// Capture a screenshot from this source.
-    fn take_screenshot(
+    fn capture(
         &mut self,
     ) -> impl std::future::Future<Output = Result<Screenshot, Self::Error>> + Send;
 }
 
-/// Helper that bridges an [`AsyncScreenshotProvider`] into a blocking call
-/// via a user-supplied executor (e.g. `pollster::block_on`).
+// ── MultiCapture trait ───────────────────────────────────────────────────────
+
+/// A [`Capture`] source that can capture multiple outputs (screens, monitors).
 ///
-/// This keeps the core crate dependency-free — the executor stays in the
-/// driver crate.
-///
-/// # Example
-///
-/// ```rust,ignore
-/// use miniscreenshot::{block_on_provider, AsyncScreenshotProvider};
-/// use miniscreenshot_portal::PortalCapture;
-///
-/// let mut capture = PortalCapture::connect();
-/// let shot = block_on_provider(capture.take_screenshot(), |fut| pollster::block_on(fut)).expect("capture");
-/// ```
-pub fn block_on_provider<Fut, F, E>(future: Fut, block_on: F) -> Result<Screenshot, E>
-where
-    Fut: std::future::Future<Output = Result<Screenshot, E>> + Send,
-    F: FnOnce(Fut) -> Result<Screenshot, E>,
-{
-    block_on(future)
+/// Implemented by `X11Capture`, `WaylandCapture`, and `PortalCapture`
+/// (which returns 1 for a single interactive session).
+pub trait MultiCapture: Capture {
+    /// Number of available capture sources.
+    fn source_count(&self) -> usize;
+
+    /// Capture the output at zero-based `index`.
+    fn capture_index(&mut self, index: usize) -> Result<Screenshot, Self::Error>;
+
+    /// Capture all available outputs.
+    fn capture_all(&mut self) -> Result<Vec<Screenshot>, Self::Error> {
+        (0..self.source_count())
+            .map(|i| self.capture_index(i))
+            .collect()
+    }
 }
 
 // ── Error types ──────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 [package]
 name = "miniscreenshot-x11"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "X11 (XGetImage / MIT-SHM) screenshot helper for the miniscreenshot ecosystem."
 authors = ["Markus Mayer <widemeadows@gmail.com>"]
@@ -11,7 +11,7 @@ categories = ["multimedia::images", "graphics"]
 readme = "../README.md"
 
 [dependencies]
-miniscreenshot = { version = "0.1.0", path = "../miniscreenshot" }
+miniscreenshot = { version = "0.2", path = "../miniscreenshot" }
 # Pure-Rust X11 client; enable `allow-unsafe-code` so the optional SHM path
 # can mmap the shared segment. `shm` exposes the MIT-SHM extension protocol.
 x11rb = { version = "0.13", features = ["shm", "allow-unsafe-code"] }

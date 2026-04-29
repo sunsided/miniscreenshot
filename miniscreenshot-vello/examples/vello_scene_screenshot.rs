@@ -3,7 +3,7 @@ use miniscreenshot_vello::vello::kurbo::{Affine, Rect};
 use miniscreenshot_vello::vello::peniko::Color;
 use miniscreenshot_vello::vello::peniko::Fill;
 use miniscreenshot_vello::vello::{AaConfig, AaSupport, RenderParams};
-use miniscreenshot_wgpu::capture_texture;
+use miniscreenshot_wgpu::capture;
 use miniscreenshot_wgpu::wgpu;
 
 fn main() {
@@ -90,7 +90,7 @@ fn main() {
         .render_to_texture(&device, &queue, &scene, &texture_view, &render_params)
         .expect("Vello render failed");
 
-    let shot = capture_texture(&device, &queue, &texture).expect("failed to capture texture");
+    let shot = capture(&device, &queue, &texture).expect("failed to capture texture");
     let path = "vello_screenshot.png";
     shot.save(path).expect("failed to save screenshot");
     println!("saved {path}");

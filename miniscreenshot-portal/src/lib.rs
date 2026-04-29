@@ -12,7 +12,7 @@
 //! | `tokio` (default) | Use tokio as the async runtime for ashpd |
 //! | `async-std` | Use async-std as the async runtime for ashpd |
 //! | `blocking` (default) | Enable blocking convenience methods via `pollster` |
-//! | `async` | Enable `AsyncScreenshotProvider` trait impl |
+//! | `async` | Enable `CaptureAsync` trait impl |
 //!
 //! Exactly one of `tokio` or `async-std` must be enabled.
 //!
@@ -48,8 +48,8 @@ compile_error!("Enable one of `tokio` or `async-std` on miniscreenshot-portal.")
 
 pub use ashpd;
 #[cfg(feature = "async")]
-pub use miniscreenshot::AsyncScreenshotProvider;
-pub use miniscreenshot::{Screenshot, ScreenshotProvider};
+pub use miniscreenshot::CaptureAsync;
+pub use miniscreenshot::{Capture, MultiCapture, Screenshot};
 
 use ashpd::desktop::screenshot::Screenshot as PortalScreenshot;
 use std::fs::File;
@@ -231,19 +231,36 @@ impl PortalCapture {
 }
 
 #[cfg(feature = "blocking")]
-impl ScreenshotProvider for PortalCapture {
+impl Capture for PortalCapture {
     type Error = PortalCaptureError;
 
-    fn take_screenshot(&mut self) -> Result<Screenshot, Self::Error> {
+    fn capture(&mut self) -> Result<Screenshot, Self::Error> {
+        self.capture_interactive()
+    }
+}
+
+#[cfg(feature = "blocking")]
+impl MultiCapture for PortalCapture {
+    fn source_count(&self) -> usize {
+        1
+    }
+
+    fn capture_index(&mut self, index: usize) -> Result<Screenshot, Self::Error> {
+        if index != 0 {
+            return Err(PortalCaptureError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "portal only supports a single capture (index 0)",
+            )));
+        }
         self.capture_interactive()
     }
 }
 
 #[cfg(feature = "async")]
-impl AsyncScreenshotProvider for PortalCapture {
+impl CaptureAsync for PortalCapture {
     type Error = PortalCaptureError;
 
-    async fn take_screenshot(&mut self) -> Result<Screenshot, Self::Error> {
+    async fn capture(&mut self) -> Result<Screenshot, Self::Error> {
         self.capture_interactive_async().await
     }
 }

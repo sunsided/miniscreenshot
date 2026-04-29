@@ -50,8 +50,13 @@ pub enum X11CaptureError {
     Connection(x11rb::errors::ConnectionError),
     Reply(x11rb::errors::ReplyError),
     ScreenNotFound(usize),
-    UnsupportedVisual { depth: u8, bits_per_pixel: u8 },
+    UnsupportedVisual {
+        depth: u8,
+        bits_per_pixel: u8,
+    },
     Io(std::io::Error),
+    /// The X11 server is XWayland, which cannot capture the Wayland desktop.
+    XWaylandDetected,
 }
 
 impl std::fmt::Display for X11CaptureError {
@@ -67,6 +72,10 @@ impl std::fmt::Display for X11CaptureError {
             } => {
                 write!(f, "unsupported visual: depth={depth}, bpp={bits_per_pixel}")
             }
+            Self::XWaylandDetected => write!(
+                f,
+                "XWayland detected — root window capture returns black. Use the Wayland or Portal crate instead."
+            ),
             Self::Io(e) => write!(f, "I/O error: {e}"),
         }
     }
@@ -148,6 +157,12 @@ impl X11Capture {
     pub fn connect() -> Result<Self, X11CaptureError> {
         let (conn, _screen_num) = x11rb::connect(None)?;
         let setup = conn.setup();
+
+        // Detect XWayland — its root window is transparent and cannot capture
+        // the Wayland desktop, so any screenshot will be black.
+        if std::env::var("WAYLAND_DISPLAY").is_ok() {
+            return Err(X11CaptureError::XWaylandDetected);
+        }
 
         let mut screens = Vec::new();
         for screen in &setup.roots {

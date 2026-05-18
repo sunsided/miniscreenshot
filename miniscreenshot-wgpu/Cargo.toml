@@ -12,7 +12,7 @@ readme = "../README.md"
 
 [dependencies]
 miniscreenshot = { version = "0.2", path = "../miniscreenshot" }
-wgpu = "28"
+wgpu = "29"
 
 [dev-dependencies]
 pollster = "0.4"

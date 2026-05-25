@@ -11,6 +11,7 @@ categories = ["multimedia::images", "graphics"]
 readme = "../README.md"
 
 [features]
+default = ["wgpu-28"]
 wgpu-28 = ["dep:wgpu_28"]
 wgpu-29 = ["dep:wgpu_29"]
 
@@ -21,3 +22,6 @@ wgpu_29 = { package = "wgpu", version = "29", optional = true }
 
 [dev-dependencies]
 pollster = "0.4"
+
+[package.metadata.docs.rs]
+features = ["wgpu-28"]

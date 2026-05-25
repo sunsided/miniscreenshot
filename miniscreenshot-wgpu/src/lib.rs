@@ -30,9 +30,7 @@
 #[cfg(all(feature = "wgpu-28", feature = "wgpu-29"))]
 compile_error!("features `wgpu-28` and `wgpu-29` are mutually exclusive; enable exactly one");
 #[cfg(not(any(feature = "wgpu-28", feature = "wgpu-29")))]
-compile_error!(
-    "one of `wgpu-28` or `wgpu-29` must be enabled for miniscreenshot-wgpu"
-);
+compile_error!("one of `wgpu-28` or `wgpu-29` must be enabled for miniscreenshot-wgpu");
 
 /// Re-export of the `wgpu` crate.
 ///

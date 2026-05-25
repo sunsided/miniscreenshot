@@ -19,7 +19,10 @@ fn fs() -> @location(0) vec4<f32> {
 "#;
 
 fn main() {
+    #[cfg(feature = "wgpu-28")]
     let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+    #[cfg(feature = "wgpu-29")]
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::LowPower,
         force_fallback_adapter: false,

@@ -47,7 +47,8 @@ jobs:
           - { name: core, crate: miniscreenshot, example: core_scene_screenshot, features: "" }
           - { name: softbuffer, crate: miniscreenshot-softbuffer, example: softbuffer_scene_screenshot, features: "" }
           - { name: softbuffer+winit, crate: miniscreenshot-softbuffer, example: softbuffer_winit_scene_screenshot, features: "--features winit" }
-          - { name: wgpu, crate: miniscreenshot-wgpu, example: wgpu_scene_screenshot, features: "" }
+          - { name: wgpu-28, crate: miniscreenshot-wgpu, example: wgpu_scene_screenshot, features: "--features wgpu-28", run-crate-tests: true }
+          - { name: wgpu-29, crate: miniscreenshot-wgpu, example: wgpu_scene_screenshot, features: "--no-default-features --features wgpu-29", run-crate-tests: true }
           - { name: wayland, crate: miniscreenshot-wayland, example: wayland_scene_screenshot, features: "" }
           - { name: x11, crate: miniscreenshot-x11, example: x11_scene_screenshot, features: "" }
           - { name: skia, crate: miniscreenshot-skia, example: skia_scene_screenshot, features: "" }
@@ -73,6 +74,9 @@ jobs:
         run: cargo build -p ${{ matrix.example.crate }} --example ${{ matrix.example.example }} ${{ matrix.example.features }} --verbose
       - name: Test
         run: cargo test -p ${{ matrix.example.crate }} --example ${{ matrix.example.example }} ${{ matrix.example.features }} --verbose
+      - name: Test crate targets
+        if: ${{ matrix.example.run-crate-tests }}
+        run: cargo test -p ${{ matrix.example.crate }} ${{ matrix.example.features }} --verbose
 
   dependencies:
     name: Dependency Submission

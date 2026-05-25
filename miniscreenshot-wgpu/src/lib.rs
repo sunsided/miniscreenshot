@@ -11,6 +11,14 @@
 //! use miniscreenshot_wgpu::wgpu;
 //! ```
 //!
+//! # Feature selection
+//!
+//! Enable exactly one compatibility feature to select the `wgpu` major
+//! version:
+//!
+//! - `wgpu-28`
+//! - `wgpu-29`
+//!
 //! # How it works
 //!
 //! 1. A staging `Buffer` is created with `COPY_DST | MAP_READ` usage.
@@ -19,11 +27,19 @@
 //! 4. The staging buffer is mapped, row padding is stripped, and the pixel
 //!    data is converted to RGBA8 if necessary.
 
+#[cfg(all(feature = "wgpu-28", feature = "wgpu-29"))]
+compile_error!("features `wgpu-28` and `wgpu-29` are mutually exclusive; enable exactly one");
+#[cfg(not(any(feature = "wgpu-28", feature = "wgpu-29")))]
+compile_error!("one of `wgpu-28` or `wgpu-29` must be enabled for miniscreenshot-wgpu");
+
 /// Re-export of the `wgpu` crate.
 ///
 /// Depending on `miniscreenshot-wgpu` instead of `wgpu` directly guarantees
 /// version compatibility across the workspace.
-pub use wgpu;
+#[cfg(feature = "wgpu-28")]
+pub use wgpu_28 as wgpu;
+#[cfg(feature = "wgpu-29")]
+pub use wgpu_29 as wgpu;
 
 pub use miniscreenshot::{Capture, CaptureError, Screenshot};
 

@@ -10,9 +10,18 @@ keywords = ["screenshot", "wgpu", "screenshot-helper"]
 categories = ["multimedia::images", "graphics"]
 readme = "../README.md"
 
+[features]
+default = ["wgpu-28"]
+wgpu-28 = ["dep:wgpu_28"]
+wgpu-29 = ["dep:wgpu_29"]
+
 [dependencies]
 miniscreenshot = { version = "0.2", path = "../miniscreenshot" }
-wgpu = "28"
+wgpu_28 = { package = "wgpu", version = "28", optional = true }
+wgpu_29 = { package = "wgpu", version = "29", optional = true }
 
 [dev-dependencies]
 pollster = "0.4"
+
+[package.metadata.docs.rs]
+features = ["wgpu-28"]

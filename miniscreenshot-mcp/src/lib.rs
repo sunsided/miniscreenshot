@@ -27,7 +27,7 @@ use std::{
     sync::Arc,
 };
 
-use miniscreenshot::{Capture, CaptureAsync, ImageFormat};
+use miniscreenshot::{Capture, CaptureAsync, ImageFormat, Screenshot};
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
     model::*,
@@ -138,16 +138,26 @@ impl Format {
 /// Input arguments for the `screenshot` MCP tool.
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct ScreenshotArgs {
-    /// Absolute (or caller-relative) path to write the screenshot to.
-    /// Format is inferred from the extension (.png, .ppm, .pgm); defaults to PNG.
-    pub path: String,
-    /// Optional explicit format override.
+    /// Optional path to write the screenshot to. When omitted, the image is
+    /// returned inline only and nothing is written to disk (handy for an agent
+    /// that just wants to *see* the current frame). Format is inferred from the
+    /// extension (.png, .ppm, .pgm); defaults to PNG.
+    #[serde(default)]
+    pub path: Option<String>,
+    /// Optional explicit format override for the file written to `path`.
     #[serde(default)]
     pub format: Option<Format>,
-    /// If true, return the encoded image as an MCP ImageContent alongside
-    /// the text confirmation. Default false (path-only, keeps payload small).
+    /// If true, also return the encoded image inline as an MCP ImageContent
+    /// alongside the text confirmation. Forced on when `path` is omitted.
+    /// Default false when `path` is set (path-only keeps the response small).
     #[serde(default)]
     pub include_image: bool,
+    /// When an image is returned inline, downscale it so its longest side is at
+    /// most this many pixels (aspect preserved). The file written to `path` is
+    /// always full resolution. Defaults to [`DEFAULT_INLINE_MAX_DIM`]; set `0`
+    /// to send the inline image at full resolution.
+    #[serde(default)]
+    pub max_dimension: Option<u32>,
 }
 
 // ── Path validation ─────────────────────────────────────────────────────────
@@ -245,6 +255,81 @@ fn check_writable(dir: &Path) -> Result<(), McpError> {
     Ok(())
 }
 
+// ── Response building (shared by sync + async tool handlers) ─────────────────
+
+/// Default longest-edge cap (in pixels) for inline images, sized to be
+/// friendly to a token-budgeted model context. Override per call with
+/// `max_dimension`; `0` disables downscaling.
+pub const DEFAULT_INLINE_MAX_DIM: u32 = 1568;
+
+/// Resolve the optional output target *before* capture, so a bad path fails
+/// fast without taking a screenshot. Returns `None` for an inline-only request
+/// (no `path` given).
+fn resolve_target(
+    args: &ScreenshotArgs,
+    allowed_root: Option<&PathBuf>,
+) -> Result<Option<(PathBuf, ImageFormat)>, McpError> {
+    match args.path.as_deref() {
+        Some(path) => Ok(Some(validate_output_path(path, args.format, allowed_root)?)),
+        None => Ok(None),
+    }
+}
+
+/// Encode the inline image (optionally downscaled) and, when `target` is set,
+/// save the full-resolution screenshot to disk. Builds the tool response.
+///
+/// When `target` is `None` the image is always returned inline — that is the
+/// only output for a path-less request.
+async fn build_response(
+    screenshot: Screenshot,
+    target: Option<(PathBuf, ImageFormat)>,
+    include_image: bool,
+    max_dimension: Option<u32>,
+) -> Result<CallToolResult, McpError> {
+    let want_image = include_image || target.is_none();
+    let (width, height) = (screenshot.width(), screenshot.height());
+
+    // Inline copy is downscaled; the on-disk file stays full resolution.
+    let inline_png =
+        if want_image {
+            let max = max_dimension.unwrap_or(DEFAULT_INLINE_MAX_DIM);
+            let scaled = screenshot.downscale_to(max);
+            Some(scaled.encode_png().map_err(|e| {
+                McpError::internal_error(format!("failed to encode PNG: {e}"), None)
+            })?)
+        } else {
+            None
+        };
+
+    let text = if let Some((path_buf, format)) = target {
+        let (size, path_buf) = tokio::task::spawn_blocking(move || {
+            screenshot.save_as(&path_buf, format).map_err(|e| {
+                McpError::internal_error(format!("failed to save screenshot: {e}"), None)
+            })?;
+            std::fs::metadata(&path_buf)
+                .map(|m| (m.len(), path_buf))
+                .map_err(|e| {
+                    McpError::internal_error(format!("cannot read saved file metadata: {e}"), None)
+                })
+        })
+        .await
+        .map_err(|e| McpError::internal_error(format!("save task panicked: {e}"), None))??;
+        format!(
+            "Screenshot saved to {} ({width}x{height}, {size} bytes, {format:?})",
+            path_buf.display(),
+        )
+    } else {
+        format!("Captured {width}x{height}; returned inline (not saved to disk).")
+    };
+
+    let mut content = vec![Content::text(text)];
+    if let Some(png) = inline_png {
+        let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &png);
+        content.push(Content::image(b64, "image/png"));
+    }
+    Ok(CallToolResult::success(content))
+}
+
 // ── Helper: bind + axum router construction ─────────────────────────────────
 
 async fn bind_and_serve<S>(
@@ -315,18 +400,15 @@ where
 {
     #[tool(
         name = "screenshot",
-        description = "Capture a screenshot of the host application/desktop and save it to a file path of your choosing."
+        description = "Capture the host application's current frame (or the desktop). With `path`, saves the image there (format from the extension, or the `format` arg); without `path`, returns the image inline only and writes nothing. Use `max_dimension` to cap the inline image's longest side (default 1568px) so the response stays small."
     )]
     async fn screenshot(
         &self,
         Parameters(args): Parameters<ScreenshotArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let (path_buf, format) =
-            validate_output_path(&args.path, args.format, self.config.allowed_root.as_ref())?;
+        let target = resolve_target(&args, self.config.allowed_root.as_ref())?;
 
-        let include_image = args.include_image;
-
-        // Capture on spawn_blocking (sync capture may block)
+        // Capture on spawn_blocking (sync capture may block).
         let screenshot = tokio::task::spawn_blocking({
             let capture = Arc::clone(&self.capture);
             move || {
@@ -339,45 +421,7 @@ where
         .await
         .map_err(|e| McpError::internal_error(format!("capture task panicked: {e}"), None))??;
 
-        let dimensions = (screenshot.width(), screenshot.height());
-        let png_bytes = if include_image {
-            Some(screenshot.encode_png().map_err(|e| {
-                McpError::internal_error(format!("failed to encode PNG: {e}"), None)
-            })?)
-        } else {
-            None
-        };
-
-        // Save in spawn_blocking
-        let file_size = tokio::task::spawn_blocking({
-            let path_buf = path_buf.clone();
-            move || {
-                screenshot.save_as(&path_buf, format).map_err(|e| {
-                    McpError::internal_error(format!("failed to save screenshot: {e}"), None)
-                })?;
-                std::fs::metadata(&path_buf).map(|m| m.len()).map_err(|e| {
-                    McpError::internal_error(format!("cannot read saved file metadata: {e}"), None)
-                })
-            }
-        })
-        .await
-        .map_err(|e| McpError::internal_error(format!("save task panicked: {e}"), None))??;
-
-        let mut content = vec![Content::text(format!(
-            "Screenshot saved to {} ({}x{}, {} bytes, {:?})",
-            path_buf.display(),
-            dimensions.0,
-            dimensions.1,
-            file_size,
-            format,
-        ))];
-
-        if let Some(png) = png_bytes {
-            let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &png);
-            content.push(Content::image(b64, "image/png"));
-        }
-
-        Ok(CallToolResult::success(content))
+        build_response(screenshot, target, args.include_image, args.max_dimension).await
     }
 }
 
@@ -390,7 +434,7 @@ where
     fn get_info(&self) -> ServerInfo {
         ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
             .with_server_info(Implementation::from_build_env())
-            .with_instructions("Screenshot capture server. Use the `screenshot` tool to capture and save a screenshot.".to_string())
+            .with_instructions("Screenshot capture server. Call the `screenshot` tool to capture the host application's current frame: pass a `path` to save it, or omit `path` to get the image back inline.".to_string())
     }
 }
 
@@ -426,11 +470,10 @@ where
     /// Bind and serve the MCP server. Returns when the server shuts down.
     pub async fn serve(self) -> Result<(), ServerError> {
         let handle = self.serve_with_handle_inner().await?;
-        handle.join.await.map_err(|e| {
-            ServerError::Transport(std::io::Error::other(
-                e.to_string(),
-            ))
-        })?
+        handle
+            .join
+            .await
+            .map_err(|e| ServerError::Transport(std::io::Error::other(e.to_string())))?
     }
 
     /// Bind and return the local address + a JoinHandle for integration.
@@ -474,18 +517,15 @@ where
 {
     #[tool(
         name = "screenshot",
-        description = "Capture a screenshot of the host application/desktop and save it to a file path of your choosing."
+        description = "Capture the host application's current frame (or the desktop). With `path`, saves the image there (format from the extension, or the `format` arg); without `path`, returns the image inline only and writes nothing. Use `max_dimension` to cap the inline image's longest side (default 1568px) so the response stays small."
     )]
     async fn screenshot(
         &self,
         Parameters(args): Parameters<ScreenshotArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let (path_buf, format) =
-            validate_output_path(&args.path, args.format, self.config.allowed_root.as_ref())?;
+        let target = resolve_target(&args, self.config.allowed_root.as_ref())?;
 
-        let include_image = args.include_image;
-
-        // Capture async (no spawn_blocking)
+        // Capture async (no spawn_blocking).
         let screenshot = {
             let mut guard = self.capture.lock().await;
             guard
@@ -494,45 +534,7 @@ where
                 .map_err(|e| McpError::internal_error(format!("capture failed: {e}"), None))?
         };
 
-        let dimensions = (screenshot.width(), screenshot.height());
-        let png_bytes = if include_image {
-            Some(screenshot.encode_png().map_err(|e| {
-                McpError::internal_error(format!("failed to encode PNG: {e}"), None)
-            })?)
-        } else {
-            None
-        };
-
-        // Save in spawn_blocking
-        let file_size = tokio::task::spawn_blocking({
-            let path_buf = path_buf.clone();
-            move || {
-                screenshot.save_as(&path_buf, format).map_err(|e| {
-                    McpError::internal_error(format!("failed to save screenshot: {e}"), None)
-                })?;
-                std::fs::metadata(&path_buf).map(|m| m.len()).map_err(|e| {
-                    McpError::internal_error(format!("cannot read saved file metadata: {e}"), None)
-                })
-            }
-        })
-        .await
-        .map_err(|e| McpError::internal_error(format!("save task panicked: {e}"), None))??;
-
-        let mut content = vec![Content::text(format!(
-            "Screenshot saved to {} ({}x{}, {} bytes, {:?})",
-            path_buf.display(),
-            dimensions.0,
-            dimensions.1,
-            file_size,
-            format,
-        ))];
-
-        if let Some(png) = png_bytes {
-            let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &png);
-            content.push(Content::image(b64, "image/png"));
-        }
-
-        Ok(CallToolResult::success(content))
+        build_response(screenshot, target, args.include_image, args.max_dimension).await
     }
 }
 
@@ -545,7 +547,7 @@ where
     fn get_info(&self) -> ServerInfo {
         ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
             .with_server_info(Implementation::from_build_env())
-            .with_instructions("Screenshot capture server. Use the `screenshot` tool to capture and save a screenshot.".to_string())
+            .with_instructions("Screenshot capture server. Call the `screenshot` tool to capture the host application's current frame: pass a `path` to save it, or omit `path` to get the image back inline.".to_string())
     }
 }
 
@@ -581,11 +583,10 @@ where
     /// Bind and serve the MCP server. Returns when the server shuts down.
     pub async fn serve(self) -> Result<(), ServerError> {
         let handle = self.serve_with_handle_inner().await?;
-        handle.join.await.map_err(|e| {
-            ServerError::Transport(std::io::Error::other(
-                e.to_string(),
-            ))
-        })?
+        handle
+            .join
+            .await
+            .map_err(|e| ServerError::Transport(std::io::Error::other(e.to_string())))?
     }
 
     /// Bind and return the local address + a JoinHandle for integration.
@@ -699,5 +700,66 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err().message;
         assert!(err.contains("outside the allowed root"));
+    }
+
+    // ── resolve_target / build_response ──────────────────────────────────────
+
+    fn args(path: Option<&str>, max_dimension: Option<u32>) -> ScreenshotArgs {
+        ScreenshotArgs {
+            path: path.map(str::to_owned),
+            format: None,
+            include_image: false,
+            max_dimension,
+        }
+    }
+
+    fn solid(width: u32, height: u32) -> Screenshot {
+        Screenshot::from_rgba(width, height, vec![128u8; (width * height * 4) as usize])
+    }
+
+    #[test]
+    fn resolve_target_none_when_no_path() {
+        assert!(resolve_target(&args(None, None), None).unwrap().is_none());
+    }
+
+    #[test]
+    fn resolve_target_some_when_path_set() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("shot.png");
+        let target = resolve_target(&args(Some(path.to_str().unwrap()), None), None).unwrap();
+        let (buf, fmt) = target.unwrap();
+        assert_eq!(buf, path);
+        assert_eq!(fmt, ImageFormat::Png);
+    }
+
+    #[tokio::test]
+    async fn build_response_saves_full_resolution_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("shot.png");
+        // include_image=false, but a tiny max_dimension must NOT shrink the file.
+        build_response(
+            solid(4, 2),
+            Some((path.clone(), ImageFormat::Png)),
+            false,
+            Some(1),
+        )
+        .await
+        .unwrap();
+
+        let bytes = std::fs::read(&path).unwrap();
+        let reader = png::Decoder::new(std::io::Cursor::new(bytes))
+            .read_info()
+            .unwrap();
+        let info = reader.info();
+        assert_eq!((info.width, info.height), (4, 2));
+    }
+
+    #[tokio::test]
+    async fn build_response_without_path_writes_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+        build_response(solid(4, 2), None, false, Some(0))
+            .await
+            .unwrap();
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
     }
 }

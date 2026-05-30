@@ -56,6 +56,10 @@ jobs:
           - { name: portal, crate: miniscreenshot-portal, example: portal_scene_screenshot, features: "" }
           - { name: portal+async, crate: miniscreenshot-portal, example: portal_async_scene_screenshot, features: "--features async" }
           - { name: minifb, crate: miniscreenshot-minifb, example: minifb_scene_screenshot, features: "" }
+          # MCP examples start a long-running server / need a desktop session,
+          # so they are compile-checked only (the Test step below is skipped).
+          - { name: mcp-desktop, crate: miniscreenshot-mcp, example: desktop_mcp_server, features: "", build-only: true }
+          - { name: mcp-portal-async, crate: miniscreenshot-mcp, example: portal_async_mcp_server, features: "", build-only: true }
 
     steps:
       - uses: actions/checkout@v6
@@ -73,6 +77,7 @@ jobs:
       - name: Build
         run: cargo build -p ${{ matrix.example.crate }} --example ${{ matrix.example.example }} ${{ matrix.example.features }} --verbose
       - name: Test
+        if: ${{ !matrix.example.build-only }}
         run: cargo test -p ${{ matrix.example.crate }} --example ${{ matrix.example.example }} ${{ matrix.example.features }} --verbose
       - name: Test crate targets
         if: ${{ matrix.example.run-crate-tests }}

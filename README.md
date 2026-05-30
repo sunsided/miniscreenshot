@@ -248,33 +248,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 miniscreenshot-mcp = "0.1"
 ```
 
-Serve any `Capture` implementor as an MCP server over streamable HTTP:
+Embed it in your running game or editor so a coding agent can inspect the live
+frame. Serve any `Capture` (or `CaptureAsync`) implementor over streamable HTTP:
 
 ```rust
 use miniscreenshot_mcp::ScreenshotServer;
 
-// `capture` can be any `Capture` — a closure, desktop, wayland, x11, portal…
+// `capture` can be any `Capture` — a closure over your wgpu frame, or a
+// desktop / wayland / x11 / portal backend.
 let capture = miniscreenshot_desktop::take;
 let server = ScreenshotServer::new(capture);
-server.serve().await?;
+server.serve().await?; // serves on http://127.0.0.1:8731/mcp
 ```
 
-The server exposes a single `screenshot` tool on `http://127.0.0.1:8731/mcp`
-(by default). An MCP client (e.g., a coding assistant) can call it with:
+The server is meant to live **inside the long-running process** you want to
+inspect; the agent connects to it over HTTP. (That is why the transport is HTTP
+rather than stdio: a stdio server would be a fresh subprocess that cannot see
+your already-running game.)
+
+It exposes a single `screenshot` tool. An agent can call it with **no path** to
+just *see* the current frame inline:
 
 ```json
-{
-  "path": "/tmp/screenshot.png",
-  "format": null,
-  "include_image": false
-}
+{ "max_dimension": 768 }
+```
+
+or with a `path` to also save it to disk:
+
+```json
+{ "path": "/tmp/screenshot.png", "include_image": false }
 ```
 
 | Argument | Type | Default | Description |
 |----------|------|---------|-------------|
-| `path` | `string` | — | File path to write the screenshot to |
-| `format` | `"png" \| "ppm" \| "pgm"` | `null` | Explicit format override (extension is inferred otherwise) |
-| `include_image` | `bool` | `false` | Return the encoded image as base64 `ImageContent` alongside the text confirmation |
+| `path` | `string` | _(none)_ | Where to save the screenshot. **Omit to return the image inline only** — nothing is written to disk. |
+| `format` | `"png" \| "ppm" \| "pgm"` | `null` | Explicit format override for the saved file (extension is inferred otherwise) |
+| `include_image` | `bool` | `false` | Also return the image inline as base64 `ImageContent`. Forced on when `path` is omitted. |
+| `max_dimension` | `int` | `1568` | Cap the inline image's longest side (aspect preserved) to keep the response small. `0` sends it full-resolution. The saved file is always full-resolution. |
 
 #### Custom configuration
 
@@ -305,6 +315,17 @@ let capture = PortalCapture::connect_async().await;
 let server = AsyncScreenshotServer::new(capture);
 server.serve().await?;
 ```
+
+#### Connecting a coding agent
+
+Point your MCP-capable agent at the running server. With Claude Code:
+
+```bash
+claude mcp add --transport http screenshot http://127.0.0.1:8731/mcp
+```
+
+The agent can then call the `screenshot` tool to see your game's current frame
+as you iterate — pass a `path` when you also want the capture saved to disk.
 
 ### minifb (prototyping window)
 

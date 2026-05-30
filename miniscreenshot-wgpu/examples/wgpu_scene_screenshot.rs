@@ -18,8 +18,16 @@ fn fs() -> @location(0) vec4<f32> {
 }
 "#;
 
+#[cfg(all(feature = "wgpu-28", feature = "wgpu-29"))]
+compile_error!("features `wgpu-28` and `wgpu-29` are mutually exclusive; enable exactly one");
+#[cfg(not(any(feature = "wgpu-28", feature = "wgpu-29")))]
+compile_error!("one of `wgpu-28` or `wgpu-29` must be enabled for this example");
+
 fn main() {
+    #[cfg(feature = "wgpu-28")]
     let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+    #[cfg(feature = "wgpu-29")]
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::LowPower,
         force_fallback_adapter: false,

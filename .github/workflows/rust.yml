@@ -14,7 +14,7 @@ jobs:
     name: Format check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -27,7 +27,7 @@ jobs:
     needs: fmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -47,7 +47,8 @@ jobs:
           - { name: core, crate: miniscreenshot, example: core_scene_screenshot, features: "" }
           - { name: softbuffer, crate: miniscreenshot-softbuffer, example: softbuffer_scene_screenshot, features: "" }
           - { name: softbuffer+winit, crate: miniscreenshot-softbuffer, example: softbuffer_winit_scene_screenshot, features: "--features winit" }
-          - { name: wgpu, crate: miniscreenshot-wgpu, example: wgpu_scene_screenshot, features: "" }
+          - { name: wgpu-28, crate: miniscreenshot-wgpu, example: wgpu_scene_screenshot, features: "--no-default-features --features wgpu-28", run-crate-tests: true }
+          - { name: wgpu-29, crate: miniscreenshot-wgpu, example: wgpu_scene_screenshot, features: "--features wgpu-29", run-crate-tests: true }
           - { name: wayland, crate: miniscreenshot-wayland, example: wayland_scene_screenshot, features: "" }
           - { name: x11, crate: miniscreenshot-x11, example: x11_scene_screenshot, features: "" }
           - { name: skia, crate: miniscreenshot-skia, example: skia_scene_screenshot, features: "" }
@@ -57,7 +58,7 @@ jobs:
           - { name: minifb, crate: miniscreenshot-minifb, example: minifb_scene_screenshot, features: "" }
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libxcb1-dev libfontconfig1-dev libfreetype-dev
       - name: Install Rust
@@ -73,6 +74,52 @@ jobs:
         run: cargo build -p ${{ matrix.example.crate }} --example ${{ matrix.example.example }} ${{ matrix.example.features }} --verbose
       - name: Test
         run: cargo test -p ${{ matrix.example.crate }} --example ${{ matrix.example.example }} ${{ matrix.example.features }} --verbose
+      - name: Test crate targets
+        if: ${{ matrix.example.run-crate-tests }}
+        run: cargo test -p ${{ matrix.example.crate }} ${{ matrix.example.features }} --verbose
+
+  tests:
+    name: Workspace tests (${{ matrix.toolchain }})
+    needs: [fmt, baseline-clippy]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: [stable, 1.92.0]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libxcb1-dev libfontconfig1-dev libfreetype-dev
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@v2
+      # Default features only: enabling all features would turn on both
+      # wgpu-28 and wgpu-29, which the wgpu crate rejects with compile_error!.
+      - name: Unit + integration tests
+        run: cargo test --workspace --verbose
+      - name: Doc tests
+        run: cargo test --workspace --doc --verbose
+
+  docs:
+    name: Rustdoc (deny warnings)
+    needs: [fmt, baseline-clippy]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libxcb1-dev libfontconfig1-dev libfreetype-dev
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@v2
+      # Default features (see note above re: mutually exclusive wgpu tracks).
+      - name: cargo doc
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc --no-deps --workspace
 
   dependencies:
     name: Dependency Submission
@@ -82,7 +129,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -97,7 +144,7 @@ jobs:
         run: cargo-sbom --output-format=spdx_json_2_3 > sbom.json
 
       - name: Upload SBOM as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sbom
           path: sbom.json

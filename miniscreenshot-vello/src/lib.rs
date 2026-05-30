@@ -11,7 +11,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! miniscreenshot-vello = "0.2"
+//! miniscreenshot-vello = "0.3"
 //! ```
 //!
 //! Then access the re-exported crate:
@@ -21,6 +21,7 @@
 //! ```
 
 pub use miniscreenshot::{Capture, CaptureError, Screenshot};
+pub use miniscreenshot_wgpu::wgpu;
 
 /// Re-export of `vello`.
 ///
@@ -72,17 +73,17 @@ impl From<VelloCaptureError> for CaptureError {
 /// This delegates to [`miniscreenshot_wgpu::capture`] under the hood,
 /// so it supports the same wgpu texture formats.
 pub struct VelloCapture<'a> {
-    device: &'a vello::wgpu::Device,
-    queue: &'a vello::wgpu::Queue,
-    texture: &'a vello::wgpu::Texture,
+    device: &'a wgpu::Device,
+    queue: &'a wgpu::Queue,
+    texture: &'a wgpu::Texture,
 }
 
 impl<'a> VelloCapture<'a> {
     /// Create a new capture helper.
     pub fn new(
-        device: &'a vello::wgpu::Device,
-        queue: &'a vello::wgpu::Queue,
-        texture: &'a vello::wgpu::Texture,
+        device: &'a wgpu::Device,
+        queue: &'a wgpu::Queue,
+        texture: &'a wgpu::Texture,
     ) -> Self {
         Self {
             device,
@@ -110,9 +111,9 @@ impl Capture for VelloCapture<'_> {
 ///
 /// Returns [`VelloCaptureError::Wgpu`] if the underlying capture fails.
 pub fn capture(
-    device: &vello::wgpu::Device,
-    queue: &vello::wgpu::Queue,
-    texture: &vello::wgpu::Texture,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    texture: &wgpu::Texture,
 ) -> Result<Screenshot, VelloCaptureError> {
     miniscreenshot_wgpu::capture(device, queue, texture).map_err(VelloCaptureError::Wgpu)
 }

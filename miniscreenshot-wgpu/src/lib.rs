@@ -1,15 +1,23 @@
 //! Screenshot integration for the [`wgpu`] graphics API.
 //!
 //! This crate re-exports the `wgpu` crate (ensuring version consistency
-//! across the workspace) and provides [`capture_texture`], a synchronous
-//! utility for reading a GPU texture back to CPU memory and converting it
-//! into a [`Screenshot`].
+//! across the workspace) and provides [`capture`], a synchronous utility for
+//! reading a GPU texture back to CPU memory and converting it into a
+//! [`Screenshot`].
 //!
 //! # Re-export
 //!
 //! ```rust,no_run
 //! use miniscreenshot_wgpu::wgpu;
 //! ```
+//!
+//! # Feature selection
+//!
+//! Enable exactly one compatibility feature to select the `wgpu` major
+//! version:
+//!
+//! - `wgpu-28`
+//! - `wgpu-29`
 //!
 //! # How it works
 //!
@@ -19,11 +27,19 @@
 //! 4. The staging buffer is mapped, row padding is stripped, and the pixel
 //!    data is converted to RGBA8 if necessary.
 
+#[cfg(all(feature = "wgpu-28", feature = "wgpu-29"))]
+compile_error!("features `wgpu-28` and `wgpu-29` are mutually exclusive; enable exactly one");
+#[cfg(not(any(feature = "wgpu-28", feature = "wgpu-29")))]
+compile_error!("one of `wgpu-28` or `wgpu-29` must be enabled for miniscreenshot-wgpu");
+
 /// Re-export of the `wgpu` crate.
 ///
 /// Depending on `miniscreenshot-wgpu` instead of `wgpu` directly guarantees
 /// version compatibility across the workspace.
-pub use wgpu;
+#[cfg(feature = "wgpu-28")]
+pub use wgpu_28 as wgpu;
+#[cfg(feature = "wgpu-29")]
+pub use wgpu_29 as wgpu;
 
 pub use miniscreenshot::{Capture, CaptureError, Screenshot};
 
@@ -133,6 +149,21 @@ impl Capture for WgpuCapture<'_> {
 ///
 /// The texture must have been created with [`wgpu::TextureUsages::COPY_SRC`].
 ///
+/// # Capturing a frame you are presenting
+///
+/// You usually cannot capture the swapchain/surface texture directly: surface
+/// textures are acquired without `COPY_SRC`, so `copy_texture_to_buffer`
+/// rejects them. The standard pattern for an app or editor is to render the
+/// scene into your own offscreen texture and present from there:
+///
+/// 1. Create an offscreen texture with `RENDER_ATTACHMENT | COPY_SRC` usage
+///    and a supported format.
+/// 2. Render your frame into that texture.
+/// 3. Call [`capture`] on it to get a [`Screenshot`].
+/// 4. Blit/draw the offscreen texture to the surface to present it.
+///
+/// The `wgpu_scene_screenshot` example shows the offscreen-texture setup.
+///
 /// # Supported texture formats
 ///
 /// | Format | Behaviour |
@@ -144,8 +175,12 @@ impl Capture for WgpuCapture<'_> {
 ///
 /// # Blocking behaviour
 ///
-/// This function calls [`wgpu::Device::poll`] with [`wgpu::Maintain::Wait`],
-/// which blocks the current thread until the GPU work is complete.
+/// This function calls [`wgpu::Device::poll`] with
+/// [`wgpu::PollType::wait_indefinitely`], which blocks the current thread
+/// until the GPU work is complete. From an
+/// async context (a tokio/async render loop) wrap the call in
+/// `tokio::task::spawn_blocking` (or your runtime's equivalent) so the
+/// executor thread is not stalled.
 pub fn capture(
     device: &wgpu::Device,
     queue: &wgpu::Queue,

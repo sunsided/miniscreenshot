@@ -41,12 +41,8 @@ use serde::Deserialize;
 use thiserror::Error;
 use tokio::sync::Mutex;
 
-// ── Constants ───────────────────────────────────────────────────────────────
-
 /// Default port for the MCP HTTP server.
 pub const DEFAULT_PORT: u16 = 8731;
-
-// ── ServerError ─────────────────────────────────────────────────────────────
 
 /// Errors that can occur while running the MCP server.
 #[derive(Debug, Error)]
@@ -63,8 +59,6 @@ pub enum ServerError {
     Transport(#[from] std::io::Error),
 }
 
-// ── ServeHandle ─────────────────────────────────────────────────────────────
-
 /// A handle to a running server, returned by [`ScreenshotServer::serve_with_handle`]
 /// and [`AsyncScreenshotServer::serve_with_handle`].
 pub struct ServeHandle {
@@ -75,8 +69,6 @@ pub struct ServeHandle {
     /// The join handle for the server task. Awaits `Result<(), ServerError>`.
     pub join: tokio::task::JoinHandle<Result<(), ServerError>>,
 }
-
-// ── ServerConfig ────────────────────────────────────────────────────────────
 
 /// Configuration for the MCP server.
 #[derive(Debug, Clone)]
@@ -113,8 +105,6 @@ impl ServerConfig {
         SocketAddr::new(self.ip, self.port)
     }
 }
-
-// ── Tool input types ────────────────────────────────────────────────────────
 
 /// Explicit image format override for the screenshot tool.
 #[derive(Debug, Clone, Copy, Deserialize, schemars::JsonSchema)]
@@ -159,8 +149,6 @@ pub struct ScreenshotArgs {
     #[serde(default)]
     pub max_dimension: Option<u32>,
 }
-
-// ── Path validation ─────────────────────────────────────────────────────────
 
 /// Validates the output path before capture.
 ///
@@ -268,8 +256,6 @@ fn check_writable(dir: &Path) -> Result<(), McpError> {
     }
 }
 
-// ── Response building (shared by sync + async tool handlers) ─────────────────
-
 /// Default longest-edge cap (in pixels) for inline images, sized to be
 /// friendly to a token-budgeted model context. Override per call with
 /// `max_dimension`; `0` disables downscaling.
@@ -343,8 +329,6 @@ async fn build_response(
     Ok(CallToolResult::success(content))
 }
 
-// ── Helper: bind + axum router construction ─────────────────────────────────
-
 async fn bind_and_serve<S>(
     config: &ServerConfig,
     service_factory: impl Fn() -> Result<S, std::io::Error> + Send + Sync + 'static,
@@ -383,10 +367,6 @@ where
         join,
     })
 }
-
-// ═══════════════════════════════════════════════════════════════════════════
-// ScreenshotServer — synchronous Capture
-// ═══════════════════════════════════════════════════════════════════════════
 
 /// The internal service struct for sync capture.
 struct SyncScreenshotService<C> {
@@ -504,10 +484,6 @@ where
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// AsyncScreenshotServer — CaptureAsync
-// ═══════════════════════════════════════════════════════════════════════════
-
 /// The internal service struct for async capture.
 struct AsyncScreenshotService<C> {
     capture: Arc<Mutex<C>>,
@@ -620,8 +596,6 @@ where
     }
 }
 
-// ── Tests ────────────────────────────────────────────────────────────────────
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -720,8 +694,6 @@ mod tests {
         let err = result.unwrap_err().message;
         assert!(err.contains("outside the allowed root"));
     }
-
-    // ── resolve_target / build_response ──────────────────────────────────────
 
     fn args(path: Option<&str>, max_dimension: Option<u32>) -> ScreenshotArgs {
         ScreenshotArgs {

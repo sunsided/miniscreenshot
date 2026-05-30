@@ -1,6 +1,6 @@
 [package]
 name = "miniscreenshot-portal"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "XDG Desktop Portal (ashpd) screenshot helper for the miniscreenshot ecosystem. Works on GNOME, KDE, and wlroots-based compositors, and inside Flatpak/Snap sandboxes."
 authors = ["Markus Mayer <widemeadows@gmail.com>"]
@@ -24,7 +24,7 @@ blocking = []
 async    = []
 
 [dependencies]
-miniscreenshot = { version = "0.2", path = "../miniscreenshot" }
+miniscreenshot = { version = "0.3", path = "../miniscreenshot" }
 ashpd          = { version = "0.13", default-features = false, features = ["screenshot"] }
 png            = "0.18"
 percent-encoding = "2"

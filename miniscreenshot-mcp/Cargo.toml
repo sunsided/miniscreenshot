@@ -1,6 +1,6 @@
 [package]
 name = "miniscreenshot-mcp"
-version = "0.1.0"
+version = "0.3.0"
 edition = "2021"
 description = "MCP server exposing miniscreenshot Capture over streamable HTTP."
 authors = ["Markus Mayer <widemeadows@gmail.com>"]
@@ -11,7 +11,7 @@ categories = ["multimedia::images", "graphics"]
 readme = "../README.md"
 
 [dependencies]
-miniscreenshot = { version = "0.2", path = "../miniscreenshot" }
+miniscreenshot = { version = "0.3", path = "../miniscreenshot" }
 
 rmcp = { version = "1.7", default-features = false, features = [
     "server",
@@ -28,8 +28,8 @@ thiserror = "2"
 base64 = "0.22"
 
 [dev-dependencies]
-miniscreenshot-desktop = { version = "0.2", path = "../miniscreenshot-desktop" }
-miniscreenshot-portal = { version = "0.2", path = "../miniscreenshot-portal", default-features = false, features = ["tokio"] }
+miniscreenshot-desktop = { version = "0.3", path = "../miniscreenshot-desktop" }
+miniscreenshot-portal = { version = "0.3", path = "../miniscreenshot-portal", default-features = false, features = ["tokio"] }
 tempfile = "3"
 png = "0.18"
 tracing = "0.1"

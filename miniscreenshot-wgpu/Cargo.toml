@@ -16,7 +16,7 @@ wgpu-28 = ["dep:wgpu_28"]
 wgpu-29 = ["dep:wgpu_29"]
 
 [dependencies]
-miniscreenshot = { version = "0.2", path = "../miniscreenshot" }
+miniscreenshot = { version = "0.3", path = "../miniscreenshot" }
 wgpu_28 = { package = "wgpu", version = "28", optional = true }
 wgpu_29 = { package = "wgpu", version = "29", optional = true }
 

@@ -1,9 +1,9 @@
 //! Screenshot integration for the [`wgpu`] graphics API.
 //!
 //! This crate re-exports the `wgpu` crate (ensuring version consistency
-//! across the workspace) and provides [`capture_texture`], a synchronous
-//! utility for reading a GPU texture back to CPU memory and converting it
-//! into a [`Screenshot`].
+//! across the workspace) and provides [`capture`], a synchronous utility for
+//! reading a GPU texture back to CPU memory and converting it into a
+//! [`Screenshot`].
 //!
 //! # Re-export
 //!
@@ -149,6 +149,21 @@ impl Capture for WgpuCapture<'_> {
 ///
 /// The texture must have been created with [`wgpu::TextureUsages::COPY_SRC`].
 ///
+/// # Capturing a frame you are presenting
+///
+/// You usually cannot capture the swapchain/surface texture directly: surface
+/// textures are acquired without `COPY_SRC`, so `copy_texture_to_buffer`
+/// rejects them. The standard pattern for an app or editor is to render the
+/// scene into your own offscreen texture and present from there:
+///
+/// 1. Create an offscreen texture with `RENDER_ATTACHMENT | COPY_SRC` usage
+///    and a supported format.
+/// 2. Render your frame into that texture.
+/// 3. Call [`capture`] on it to get a [`Screenshot`].
+/// 4. Blit/draw the offscreen texture to the surface to present it.
+///
+/// The `wgpu_scene_screenshot` example shows the offscreen-texture setup.
+///
 /// # Supported texture formats
 ///
 /// | Format | Behaviour |
@@ -160,8 +175,12 @@ impl Capture for WgpuCapture<'_> {
 ///
 /// # Blocking behaviour
 ///
-/// This function calls [`wgpu::Device::poll`] with [`wgpu::Maintain::Wait`],
-/// which blocks the current thread until the GPU work is complete.
+/// This function calls [`wgpu::Device::poll`] with
+/// [`wgpu::PollType::wait_indefinitely`], which blocks the current thread
+/// until the GPU work is complete. From an
+/// async context (a tokio/async render loop) wrap the call in
+/// `tokio::task::spawn_blocking` (or your runtime's equivalent) so the
+/// executor thread is not stalled.
 pub fn capture(
     device: &wgpu::Device,
     queue: &wgpu::Queue,

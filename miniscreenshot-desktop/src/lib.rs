@@ -95,7 +95,7 @@ pub fn take() -> Result<Screenshot, CaptureError> {
 /// Select the best available backend for multi-monitor capture.
 ///
 /// Probes backends in the same order as [`take`] (Wayland → X11 → Portal)
-/// and returns a boxed [`DynMultiCapture`] so the caller can enumerate
+/// and returns a boxed [`DynMultiCapture`](miniscreenshot::DynMultiCapture) so the caller can enumerate
 /// monitors or call [`MultiCapture::capture_all`].
 ///
 /// Returns [`BackendKind`] alongside the capture session so callers know

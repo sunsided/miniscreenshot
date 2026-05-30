@@ -286,6 +286,37 @@ or with a `path` to also save it to disk:
 | `include_image` | `bool` | `false` | Also return the image inline as base64 `ImageContent`. Forced on when `path` is omitted. |
 | `max_dimension` | `int` | `1568` | Cap the inline image's longest side (aspect preserved) to keep the response small. `0` sends it full-resolution. The saved file is always full-resolution. |
 
+#### Capture your game's frame (wgpu)
+
+To serve **your rendered frame** rather than the desktop, give the server a
+[`WgpuFrameTarget`](https://docs.rs/miniscreenshot-wgpu). It owns clones of your
+wgpu device/queue and a swappable "current frame" texture, so it satisfies
+`Capture + Send + 'static` and can live inside the server while your render loop
+keeps publishing frames:
+
+```rust
+use miniscreenshot_mcp::ScreenshotServer;
+use miniscreenshot_wgpu::WgpuFrameTarget;
+
+// Render into an offscreen texture created with RENDER_ATTACHMENT | COPY_SRC.
+let target = WgpuFrameTarget::new(device.clone(), queue.clone());
+
+// Hand one clone to the server (runs on its own task)…
+let server = ScreenshotServer::new(target.clone());
+tokio::spawn(server.serve());
+
+// …and in your render loop, publish each finished frame:
+loop {
+    // render_scene(&mut encoder, &view);
+    queue.submit([encoder.finish()]);
+    target.set_frame(frame_texture.clone()); // recreate + re-publish on resize
+}
+```
+
+A capture reads whatever was last published; wgpu serializes GPU work on the
+queue, so the readback observes a complete frame. See the
+`wgpu_game_mcp_server` example for a runnable headless version.
+
 #### Custom configuration
 
 ```rust
@@ -493,6 +524,7 @@ renders a scene (or synthesises a buffer) and saves a PNG.
 | `miniscreenshot-portal` (async) | `cargo run -p miniscreenshot-portal --example portal_async_scene_screenshot --features async` | No (needs desktop session with portal) |
 | `miniscreenshot-mcp` (desktop) | `cargo run -p miniscreenshot-mcp --example desktop_mcp_server` | No (needs desktop session) |
 | `miniscreenshot-mcp` (portal async) | `cargo run -p miniscreenshot-mcp --example portal_async_mcp_server` | No (needs desktop session with portal) |
+| `miniscreenshot-mcp` (wgpu game) | `cargo run -p miniscreenshot-mcp --example wgpu_game_mcp_server` | No (runs a server; needs a GPU) |
 | `miniscreenshot-skia` | `cargo run -p miniscreenshot-skia --example skia_scene_screenshot` | Yes |
 | `miniscreenshot-vello` | `cargo run -p miniscreenshot-vello --example vello_scene_screenshot` | Yes |
 | `miniscreenshot-minifb` | `cargo run -p miniscreenshot-minifb --example minifb_scene_screenshot` | Yes |

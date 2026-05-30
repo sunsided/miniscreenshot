@@ -30,6 +30,7 @@ base64 = "0.22"
 [dev-dependencies]
 miniscreenshot-desktop = { version = "0.3", path = "../miniscreenshot-desktop" }
 miniscreenshot-portal = { version = "0.3", path = "../miniscreenshot-portal", default-features = false, features = ["tokio"] }
+miniscreenshot-wgpu = { version = "0.3", path = "../miniscreenshot-wgpu" }
 tempfile = "3"
 png = "0.18"
 tracing = "0.1"

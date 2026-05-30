@@ -60,6 +60,7 @@ jobs:
           # so they are compile-checked only (the Test step below is skipped).
           - { name: mcp-desktop, crate: miniscreenshot-mcp, example: desktop_mcp_server, features: "", build-only: true }
           - { name: mcp-portal-async, crate: miniscreenshot-mcp, example: portal_async_mcp_server, features: "", build-only: true }
+          - { name: mcp-wgpu-game, crate: miniscreenshot-mcp, example: wgpu_game_mcp_server, features: "", build-only: true }
 
     steps:
       - uses: actions/checkout@v6

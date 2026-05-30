@@ -244,15 +244,28 @@ pub fn validate_output_path(
 }
 
 fn check_writable(dir: &Path) -> Result<(), McpError> {
-    let probe = dir.join(".mcp_write_probe_tmp");
-    if std::fs::File::create(&probe).is_err() {
-        return Err(McpError::invalid_params(
+    // Unique probe name (pid + nanos) so concurrent calls or parallel servers
+    // sharing a directory don't collide, and `create_new` never clobbers a
+    // real file. Orphans, if any, are self-identifying.
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let probe = dir.join(format!(".mcp_write_probe_{}_{nanos}", std::process::id()));
+    match std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&probe)
+    {
+        Ok(_) => {
+            let _ = std::fs::remove_file(&probe);
+            Ok(())
+        }
+        Err(_) => Err(McpError::invalid_params(
             "parent directory is not writable",
             None,
-        ));
+        )),
     }
-    let _ = std::fs::remove_file(&probe);
-    Ok(())
 }
 
 // ── Response building (shared by sync + async tool handlers) ─────────────────
@@ -433,7 +446,10 @@ where
 {
     fn get_info(&self) -> ServerInfo {
         ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
-            .with_server_info(Implementation::from_build_env())
+            .with_server_info(Implementation::new(
+                self.config.server_name.clone(),
+                self.config.server_version.clone(),
+            ))
             .with_instructions("Screenshot capture server. Call the `screenshot` tool to capture the host application's current frame: pass a `path` to save it, or omit `path` to get the image back inline.".to_string())
     }
 }
@@ -546,7 +562,10 @@ where
 {
     fn get_info(&self) -> ServerInfo {
         ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
-            .with_server_info(Implementation::from_build_env())
+            .with_server_info(Implementation::new(
+                self.config.server_name.clone(),
+                self.config.server_version.clone(),
+            ))
             .with_instructions("Screenshot capture server. Call the `screenshot` tool to capture the host application's current frame: pass a `path` to save it, or omit `path` to get the image back inline.".to_string())
     }
 }

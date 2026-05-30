@@ -231,8 +231,9 @@ impl Screenshot {
     /// that was written.
     ///
     /// Designed for the "screenshot key" path in apps and editors: one call,
-    /// no name bookkeeping, and the millisecond suffix avoids clobbering a
-    /// previous capture taken in the same second.
+    /// no name bookkeeping. The directory is created if missing, and an
+    /// existing capture is never overwritten (see
+    /// [`save_in_dir_timestamped_as`](Self::save_in_dir_timestamped_as)).
     ///
     /// ```rust,no_run
     /// # use miniscreenshot::Screenshot;
@@ -246,15 +247,48 @@ impl Screenshot {
 
     /// Like [`save_in_dir_timestamped`](Self::save_in_dir_timestamped) but in
     /// an explicitly chosen `format` (the file extension follows the format).
+    ///
+    /// `dir` is created if missing. The file is opened with `create_new`, so a
+    /// prior capture is never clobbered; on the rare name collision (two calls
+    /// in the same millisecond) a `-N` suffix is appended until the name is
+    /// free.
     pub fn save_in_dir_timestamped_as<P: AsRef<Path>>(
         &self,
         dir: P,
         format: ImageFormat,
     ) -> Result<PathBuf, SaveError> {
-        let name = format!("screenshot-{}.{}", timestamp_stamp(), format.extension());
-        let path = dir.as_ref().join(name);
-        self.save_as(&path, format)?;
-        Ok(path)
+        let dir = dir.as_ref();
+        std::fs::create_dir_all(dir).map_err(SaveError::Io)?;
+
+        let data = self.encode(format).map_err(SaveError::Encode)?;
+        let stamp = timestamp_stamp();
+        let ext = format.extension();
+
+        for attempt in 0..1000u32 {
+            let name = if attempt == 0 {
+                format!("screenshot-{stamp}.{ext}")
+            } else {
+                format!("screenshot-{stamp}-{attempt}.{ext}")
+            };
+            let path = dir.join(name);
+            match std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&path)
+            {
+                Ok(mut file) => {
+                    file.write_all(&data).map_err(SaveError::Io)?;
+                    return Ok(path);
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(e) => return Err(SaveError::Io(e)),
+            }
+        }
+
+        Err(SaveError::Io(std::io::Error::new(
+            std::io::ErrorKind::AlreadyExists,
+            "no free timestamped file name available",
+        )))
     }
 
     /// Return a copy scaled down so its longest side is at most
@@ -285,15 +319,17 @@ impl Screenshot {
                 let sx0 = dx * src_w / dst_w;
                 let sx1 = (((dx + 1) * src_w / dst_w).max(sx0 + 1)).min(src_w);
 
-                let (mut r, mut g, mut b, mut a, mut n) = (0u32, 0u32, 0u32, 0u32, 0u32);
+                // u64 accumulators: a huge source region (downscaling a very
+                // large image) would overflow u32 sums (255 * region_pixels).
+                let (mut r, mut g, mut b, mut a, mut n) = (0u64, 0u64, 0u64, 0u64, 0u64);
                 for sy in sy0..sy1 {
                     let row = sy * src_w * 4;
                     for sx in sx0..sx1 {
                         let i = row + sx * 4;
-                        r += u32::from(self.data[i]);
-                        g += u32::from(self.data[i + 1]);
-                        b += u32::from(self.data[i + 2]);
-                        a += u32::from(self.data[i + 3]);
+                        r += u64::from(self.data[i]);
+                        g += u64::from(self.data[i + 1]);
+                        b += u64::from(self.data[i + 2]);
+                        a += u64::from(self.data[i + 3]);
                         n += 1;
                     }
                 }
@@ -767,6 +803,28 @@ mod tests {
         assert_eq!(time.len(), 6, "time {time}");
         assert_eq!(millis.len(), 3, "millis {millis}");
         assert!(stamp.bytes().all(|b| b.is_ascii_digit() || b == b'-'));
+    }
+
+    #[test]
+    fn save_in_dir_timestamped_creates_missing_dir() {
+        let shot = sample_2x2();
+        let dir = tempfile::tempdir().unwrap();
+        let nested = dir.path().join("a").join("b");
+        let path = shot.save_in_dir_timestamped(&nested).unwrap();
+        assert!(path.starts_with(&nested));
+        assert!(path.is_file());
+    }
+
+    #[test]
+    fn save_in_dir_timestamped_does_not_clobber() {
+        let shot = sample_2x2();
+        let dir = tempfile::tempdir().unwrap();
+        let p1 = shot.save_in_dir_timestamped(dir.path()).unwrap();
+        let p2 = shot.save_in_dir_timestamped(dir.path()).unwrap();
+        // Two captures yield two distinct files, both on disk.
+        assert_ne!(p1, p2);
+        assert!(p1.is_file() && p2.is_file());
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 2);
     }
 
     #[test]

@@ -36,8 +36,6 @@ use wayland_protocols_wlr::screencopy::v1::client::{
     zwlr_screencopy_frame_v1, zwlr_screencopy_manager_v1,
 };
 
-// ── Error type ────────────────────────────────────────────────────────────────
-
 #[derive(Debug)]
 pub enum WaylandCaptureError {
     Connection(wayland_client::ConnectError),
@@ -111,8 +109,6 @@ impl From<WaylandCaptureError> for CaptureError {
     }
 }
 
-// ── Internal state ────────────────────────────────────────────────────────────
-
 struct AppState {
     screencopy_manager: Option<zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1>,
     shm: Option<wl_shm::WlShm>,
@@ -158,8 +154,6 @@ impl FrameCapture {
         }
     }
 }
-
-// ── Dispatch ──────────────────────────────────────────────────────────────────
 
 impl Dispatch<wl_registry::WlRegistry, ()> for AppState {
     fn event(
@@ -293,8 +287,6 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for AppState 
     }
 }
 
-// ── SHM helper ────────────────────────────────────────────────────────────────
-
 fn create_shm_file(size: usize) -> std::io::Result<std::fs::File> {
     create_shm_file_impl(size)
 }
@@ -328,8 +320,6 @@ fn create_shm_file_impl(size: usize) -> std::io::Result<std::fs::File> {
     file.set_len(size as u64)?;
     Ok(file)
 }
-
-// ── WaylandCapture ────────────────────────────────────────────────────────────
 
 /// A Wayland screen-capture session backed by `zwlr_screencopy_manager_v1`.
 pub struct WaylandCapture {
@@ -461,8 +451,6 @@ impl WaylandCapture {
     }
 }
 
-// ── Pixel conversion ──────────────────────────────────────────────────────────
-
 fn convert_to_rgba(
     raw: &[u8],
     width: u32,
@@ -493,8 +481,6 @@ fn convert_to_rgba(
     }
     Some(Screenshot::from_rgba(width, height, rgba))
 }
-
-// ── Capture ──────────────────────────────────────────────────────────────────
 
 impl Capture for WaylandCapture {
     type Error = CaptureError;

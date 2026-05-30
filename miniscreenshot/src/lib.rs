@@ -25,8 +25,6 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-// ── ImageFormat ─────────────────────────────────────────────────────────────
-
 /// Supported image formats for encoding and saving screenshots.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImageFormat {
@@ -60,8 +58,6 @@ impl ImageFormat {
         }
     }
 }
-
-// ── Screenshot ───────────────────────────────────────────────────────────────
 
 /// A captured screenshot backed by raw RGBA8 pixel data.
 ///
@@ -141,8 +137,6 @@ impl Screenshot {
         self.data
     }
 
-    // ── Encoding ─────────────────────────────────────────────────────────────
-
     /// Encode the screenshot as a **PNG** image.
     pub fn encode_png(&self) -> Result<Vec<u8>, EncodeError> {
         let mut buf = Vec::new();
@@ -201,8 +195,6 @@ impl Screenshot {
             ImageFormat::Pgm => Ok(self.encode_pgm()),
         }
     }
-
-    // ── Saving ───────────────────────────────────────────────────────────────
 
     /// Save the screenshot to `path`.
     ///
@@ -350,8 +342,6 @@ impl Screenshot {
     }
 }
 
-// ── Timestamp helpers ──────────────────────────────────────────────────────────
-
 /// Build a sortable `YYYYMMDD-HHMMSS-mmm` stamp from the current wall clock
 /// (UTC). Dependency-free: avoids pulling in `chrono`/`time` for a file name.
 fn timestamp_stamp() -> String {
@@ -385,8 +375,6 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
     let month = if mp < 10 { mp + 3 } else { mp - 9 } as u32; // [1, 12]
     (if month <= 2 { y + 1 } else { y }, month, day)
 }
-
-// ── Capture trait ────────────────────────────────────────────────────────────
 
 /// A self-contained screenshot source (e.g. a system capture session).
 ///
@@ -425,8 +413,6 @@ where
     }
 }
 
-// ── CaptureAsync trait ──────────────────────────────────────────────────────
-
 /// An async-capable source that can capture a screenshot.
 ///
 /// This trait mirrors [`Capture`] but uses an `async fn` via return-position
@@ -441,8 +427,6 @@ pub trait CaptureAsync {
         &mut self,
     ) -> impl std::future::Future<Output = Result<Screenshot, Self::Error>> + Send;
 }
-
-// ── MultiCapture trait ───────────────────────────────────────────────────────
 
 /// A [`Capture`] source that can capture multiple outputs (screens, monitors).
 ///
@@ -462,8 +446,6 @@ pub trait MultiCapture: Capture {
             .collect()
     }
 }
-
-// ── CaptureError ──────────────────────────────────────────────────────────────
 
 /// A canonical error type shared by all `Capture` implementations.
 ///
@@ -565,8 +547,6 @@ pub type DynCaptureAsync = dyn CaptureAsync<Error = CaptureError>;
 /// Convenience type alias for a boxed, Send-able `CaptureAsync`.
 pub type BoxedCaptureAsync = Box<dyn CaptureAsync<Error = CaptureError> + Send>;
 
-// ── Error types ──────────────────────────────────────────────────────────────
-
 /// An error that occurred while encoding a screenshot.
 #[derive(Debug)]
 pub enum EncodeError {
@@ -611,8 +591,6 @@ impl std::error::Error for SaveError {
     }
 }
 
-// ── Tests ────────────────────────────────────────────────────────────────────
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -650,8 +628,6 @@ mod tests {
         Screenshot::from_rgba(2, 2, vec![0u8; 10]);
     }
 
-    // ── PPM ──────────────────────────────────────────────────────────────────
-
     #[test]
     fn encode_ppm_header() {
         let ppm = sample_2x2().encode_ppm();
@@ -667,8 +643,6 @@ mod tests {
         assert_eq!(&ppm[..header.len()], header);
         assert_eq!(&ppm[header.len()..], &[10, 20, 30]);
     }
-
-    // ── PGM ──────────────────────────────────────────────────────────────────
 
     #[test]
     fn encode_pgm_header() {
@@ -692,8 +666,6 @@ mod tests {
         assert_eq!(*pgm.last().unwrap(), 0u8);
     }
 
-    // ── PNG ──────────────────────────────────────────────────────────────────
-
     #[test]
     fn encode_png_valid_magic() {
         let png = sample_2x2().encode_png().unwrap();
@@ -716,8 +688,6 @@ mod tests {
         assert_eq!(decoded, original.data());
     }
 
-    // ── ImageFormat detection ────────────────────────────────────────────────
-
     #[test]
     fn format_from_extension() {
         assert_eq!(ImageFormat::from_extension("png"), Some(ImageFormat::Png));
@@ -726,8 +696,6 @@ mod tests {
         assert_eq!(ImageFormat::from_extension("pgm"), Some(ImageFormat::Pgm));
         assert_eq!(ImageFormat::from_extension("jpg"), None);
     }
-
-    // ── Save ─────────────────────────────────────────────────────────────────
 
     #[test]
     fn save_png_creates_valid_file() {
@@ -769,8 +737,6 @@ mod tests {
         // PNG magic
         assert_eq!(&bytes[..8], &[137, 80, 78, 71, 13, 10, 26, 10]);
     }
-
-    // ── Timestamped save ───────────────────────────────────────────────────────
 
     #[test]
     fn extension_matches_from_extension() {
@@ -833,8 +799,6 @@ mod tests {
         assert_eq!(civil_from_days(31), (1970, 2, 1));
         assert_eq!(civil_from_days(18_993), (2022, 1, 1));
     }
-
-    // ── Downscale ──────────────────────────────────────────────────────────────
 
     #[test]
     fn downscale_noop_when_within_bounds() {

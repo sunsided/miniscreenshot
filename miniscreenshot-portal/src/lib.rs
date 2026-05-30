@@ -135,7 +135,6 @@ impl From<PortalCaptureError> for CaptureError {
     }
 }
 
-// ── Blocking runtime bridge ──────────────────────────────────────────────────
 //
 // `pollster` cannot drive tokio-based futures because zbus (used by ashpd)
 // requires an active I/O reactor. Route the blocking API through the

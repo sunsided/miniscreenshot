@@ -19,6 +19,7 @@ applications or the entire desktop.
 | [`miniscreenshot-vello`](https://crates.io/crates/miniscreenshot-vello) | [`vello`](https://crates.io/crates/vello) re-export + pixel readback support |
 | [`miniscreenshot-minifb`](https://crates.io/crates/miniscreenshot-minifb) | [`minifb`](https://crates.io/crates/minifb) re-export + pixel buffer screenshot helper |
 | [`miniscreenshot-desktop`](https://crates.io/crates/miniscreenshot-desktop) | **Umbrella** — auto-selects Wayland → X11 → Portal for "just take a screenshot" |
+| [`miniscreenshot-mcp`](miniscreenshot-mcp/) | **MCP server** — serves a `screenshot` tool over the Model Context Protocol (streamable HTTP) |
 
 ---
 
@@ -240,6 +241,92 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 > depending on backend policy. Works inside Flatpak and Snap sandboxes.
 > Use this crate on GNOME or KWin instead of `miniscreenshot-wayland`.
 
+### MCP integration
+
+```toml
+[dependencies]
+miniscreenshot-mcp = "0.1"
+```
+
+Embed it in your running game or editor so a coding agent can inspect the live
+frame. Serve any `Capture` (or `CaptureAsync`) implementor over streamable HTTP:
+
+```rust
+use miniscreenshot_mcp::ScreenshotServer;
+
+// `capture` can be any `Capture` — a closure over your wgpu frame, or a
+// desktop / wayland / x11 / portal backend.
+let capture = miniscreenshot_desktop::take;
+let server = ScreenshotServer::new(capture);
+server.serve().await?; // serves on http://127.0.0.1:8731/mcp
+```
+
+The server is meant to live **inside the long-running process** you want to
+inspect; the agent connects to it over HTTP. (That is why the transport is HTTP
+rather than stdio: a stdio server would be a fresh subprocess that cannot see
+your already-running game.)
+
+It exposes a single `screenshot` tool. An agent can call it with **no path** to
+just *see* the current frame inline:
+
+```json
+{ "max_dimension": 768 }
+```
+
+or with a `path` to also save it to disk:
+
+```json
+{ "path": "/tmp/screenshot.png", "include_image": false }
+```
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `path` | `string` | _(none)_ | Where to save the screenshot. **Omit to return the image inline only** — nothing is written to disk. |
+| `format` | `"png" \| "ppm" \| "pgm"` | `null` | Explicit format override for the saved file (extension is inferred otherwise) |
+| `include_image` | `bool` | `false` | Also return the image inline as base64 `ImageContent`. Forced on when `path` is omitted. |
+| `max_dimension` | `int` | `1568` | Cap the inline image's longest side (aspect preserved) to keep the response small. `0` sends it full-resolution. The saved file is always full-resolution. |
+
+#### Custom configuration
+
+```rust
+use miniscreenshot_mcp::{ScreenshotServer, ServerConfig};
+
+let config = ServerConfig {
+    ip: "0.0.0.0".parse().unwrap(),
+    port: 9000,
+    path: "/mcp".into(),
+    allowed_root: Some("/tmp/screenshots".into()),  // path traversal guard
+    ..Default::default()
+};
+
+let server = ScreenshotServer::with_config(capture, config);
+server.serve().await?;
+```
+
+#### Async capture (`CaptureAsync`)
+
+For async-native backends like the portal with its `async` feature:
+
+```rust
+use miniscreenshot_mcp::AsyncScreenshotServer;
+use miniscreenshot_portal::PortalCapture;
+
+let capture = PortalCapture::connect_async().await;
+let server = AsyncScreenshotServer::new(capture);
+server.serve().await?;
+```
+
+#### Connecting a coding agent
+
+Point your MCP-capable agent at the running server. With Claude Code:
+
+```bash
+claude mcp add --transport http screenshot http://127.0.0.1:8731/mcp
+```
+
+The agent can then call the `screenshot` tool to see your game's current frame
+as you iterate — pass a `path` when you also want the capture saved to disk.
+
 ### minifb (prototyping window)
 
 ```toml
@@ -404,6 +491,8 @@ renders a scene (or synthesises a buffer) and saves a PNG.
 | `miniscreenshot-x11` | `cargo run -p miniscreenshot-x11 --example x11_scene_screenshot` | No (needs `$DISPLAY` / X11 server) |
 | `miniscreenshot-portal` | `cargo run -p miniscreenshot-portal --example portal_scene_screenshot` | No (needs desktop session with portal) |
 | `miniscreenshot-portal` (async) | `cargo run -p miniscreenshot-portal --example portal_async_scene_screenshot --features async` | No (needs desktop session with portal) |
+| `miniscreenshot-mcp` (desktop) | `cargo run -p miniscreenshot-mcp --example desktop_mcp_server` | No (needs desktop session) |
+| `miniscreenshot-mcp` (portal async) | `cargo run -p miniscreenshot-mcp --example portal_async_mcp_server` | No (needs desktop session with portal) |
 | `miniscreenshot-skia` | `cargo run -p miniscreenshot-skia --example skia_scene_screenshot` | Yes |
 | `miniscreenshot-vello` | `cargo run -p miniscreenshot-vello --example vello_scene_screenshot` | Yes |
 | `miniscreenshot-minifb` | `cargo run -p miniscreenshot-minifb --example minifb_scene_screenshot` | Yes |

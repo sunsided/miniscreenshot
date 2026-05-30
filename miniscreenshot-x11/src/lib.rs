@@ -23,8 +23,6 @@ use x11rb::protocol::shm::ConnectionExt as _;
 #[cfg(unix)]
 use std::os::raw::c_void;
 
-// ── SHM cleanup guard ────────────────────────────────────────────────────────
-
 #[cfg(unix)]
 struct ShmCleanup<'a> {
     conn: &'a RustConnection,
@@ -41,8 +39,6 @@ impl Drop for ShmCleanup<'_> {
         let _ = unsafe { libc::shmctl(self.shmid, libc::IPC_RMID, std::ptr::null_mut()) };
     }
 }
-
-// ── Error type ────────────────────────────────────────────────────────────────
 
 #[derive(Debug)]
 pub enum X11CaptureError {
@@ -159,8 +155,6 @@ impl From<X11CaptureError> for CaptureError {
     }
 }
 
-// ── Screen info ───────────────────────────────────────────────────────────────
-
 #[derive(Clone)]
 struct ScreenInfo {
     root: Window,
@@ -176,8 +170,6 @@ impl ScreenInfo {
         self.root
     }
 }
-
-// ── X11Capture ────────────────────────────────────────────────────────────────
 
 pub struct X11Capture {
     conn: RustConnection,
@@ -363,8 +355,6 @@ impl X11Capture {
     }
 }
 
-// ── Pixel conversion ──────────────────────────────────────────────────────────
-
 fn convert_to_rgba(
     raw: &[u8],
     width: u32,
@@ -401,8 +391,6 @@ fn convert_to_rgba(
         _ => None,
     }
 }
-
-// ── Capture ────────────────────────────────────────────────────────────────
 
 impl Capture for X11Capture {
     type Error = CaptureError;

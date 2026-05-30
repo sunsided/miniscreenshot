@@ -43,8 +43,6 @@ pub use wgpu_29 as wgpu;
 
 pub use miniscreenshot::{Capture, CaptureError, Screenshot};
 
-// ── Public API ────────────────────────────────────────────────────────────────
-
 /// Errors that can occur while capturing a GPU texture.
 #[derive(Debug)]
 pub enum WgpuCaptureError {
@@ -264,8 +262,6 @@ pub fn capture(
 
     Ok(Screenshot::from_rgba(width, height, rgba))
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 /// Round `width * 4` (bytes per row in RGBA8) up to the next multiple of
 /// [`wgpu::COPY_BYTES_PER_ROW_ALIGNMENT`] (256 bytes).

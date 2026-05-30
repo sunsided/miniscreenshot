@@ -318,26 +318,20 @@ impl WgpuFrameTarget {
     /// e.g. on resize). The texture must have `COPY_SRC` usage and a supported
     /// format (see [`capture`]).
     pub fn set_frame(&self, texture: wgpu::Texture) {
-        *self
-            .frame
-            .lock()
-            .expect("WgpuFrameTarget frame mutex poisoned") = Some(texture);
+        *self.frame.lock().unwrap_or_else(|e| e.into_inner()) = Some(texture);
     }
 
     /// Drop the currently published frame (e.g. while the window is minimized).
     /// Captures then fail until the next [`set_frame`](Self::set_frame).
     pub fn clear(&self) {
-        *self
-            .frame
-            .lock()
-            .expect("WgpuFrameTarget frame mutex poisoned") = None;
+        *self.frame.lock().unwrap_or_else(|e| e.into_inner()) = None;
     }
 
     /// Whether a frame has been published yet.
     pub fn has_frame(&self) -> bool {
         self.frame
             .lock()
-            .expect("WgpuFrameTarget frame mutex poisoned")
+            .unwrap_or_else(|e| e.into_inner())
             .is_some()
     }
 }
@@ -351,11 +345,12 @@ impl Capture for WgpuFrameTarget {
         let texture = self
             .frame
             .lock()
-            .expect("WgpuFrameTarget frame mutex poisoned")
+            .unwrap_or_else(|e| e.into_inner())
             .clone()
             .ok_or_else(|| {
+                // Runtime state, not an unsupported operation: no frame published yet.
                 CaptureError::new(
-                    miniscreenshot::CaptureErrorKind::Unsupported,
+                    miniscreenshot::CaptureErrorKind::Other,
                     "no frame has been published yet (call WgpuFrameTarget::set_frame)",
                 )
             })?;

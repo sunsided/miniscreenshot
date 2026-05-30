@@ -292,7 +292,7 @@ To serve **your rendered frame** rather than the desktop, give the server a
 [`WgpuFrameTarget`](https://docs.rs/miniscreenshot-wgpu). It owns clones of your
 wgpu device/queue and a swappable "current frame" texture, so it satisfies
 `Capture + Send + 'static` and can live inside the server while your render loop
-keeps publishing frames:
+keeps drawing:
 
 ```rust
 use miniscreenshot_mcp::ScreenshotServer;
@@ -305,17 +305,22 @@ let target = WgpuFrameTarget::new(device.clone(), queue.clone());
 let server = ScreenshotServer::new(target.clone());
 tokio::spawn(server.serve());
 
-// …and in your render loop, publish each finished frame:
+// …and publish your persistent offscreen texture once. A capture reads its
+// *current* contents, so you only re-publish when you recreate it (on resize).
+target.set_frame(frame_texture.clone());
+
 loop {
-    // render_scene(&mut encoder, &view);
+    // render_scene(&mut encoder, &view); // draws into frame_texture in place
     queue.submit([encoder.finish()]);
-    target.set_frame(frame_texture.clone()); // recreate + re-publish on resize
 }
 ```
 
-A capture reads whatever was last published; wgpu serializes GPU work on the
-queue, so the readback observes a complete frame. See the
-`wgpu_game_mcp_server` example for a runnable headless version.
+`set_frame` publishes the texture *handle*, not a snapshot — so publishing once
+is enough; the loop keeps drawing into it and a capture reads the latest
+contents. Calling it every frame is harmless (just a mutex + `Arc` bump) but
+unnecessary. wgpu serializes GPU work on the queue, so the readback observes a
+complete frame. See the `wgpu_game_mcp_server` example for a runnable headless
+version.
 
 #### Custom configuration
 

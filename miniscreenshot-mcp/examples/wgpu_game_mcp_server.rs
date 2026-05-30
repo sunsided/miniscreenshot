@@ -64,13 +64,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     });
     let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-    // The frame target is the bridge: one clone drives the render loop, the
-    // other is handed to the server. Both share the same published-frame slot.
+    // The frame target bridges the render loop and the server via one shared
+    // published-frame slot.
     let target = WgpuFrameTarget::new(device.clone(), queue.clone());
 
-    // ---- render loop: animate a clear color, publish each finished frame ----
+    // The offscreen texture handle is persistent, so publish it just once — a
+    // capture reads its *current* contents. Re-publish only when you recreate
+    // the texture (e.g. on resize); the render loop below updates it in place.
+    target.set_frame(texture.clone());
+
+    // ---- render loop: animate the frame in place (no per-frame publish) ----
     std::thread::spawn({
-        let (device, queue, target) = (device.clone(), queue.clone(), target.clone());
+        let (device, queue) = (device.clone(), queue.clone());
         move || {
             let mut frame = 0u32;
             loop {
@@ -101,10 +106,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     });
                 }
                 queue.submit(std::iter::once(encoder.finish()));
-
-                // Publish the frame we just submitted. A capture reads this; the
-                // queue serializes GPU work, so it observes a complete frame.
-                target.set_frame(texture.clone());
 
                 frame = frame.wrapping_add(1);
                 std::thread::sleep(Duration::from_millis(16));

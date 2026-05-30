@@ -277,22 +277,25 @@ pub fn capture(
 ///
 /// # Usage
 ///
-/// The type is [`Clone`]; keep one clone in your render loop and hand another
-/// to the server. Each clone shares the same published-frame slot.
+/// The type is [`Clone`]; keep one clone for publishing and hand another to the
+/// server. Each clone shares the same published-frame slot.
 ///
 /// 1. Render your frame into an offscreen texture created with
 ///    `RENDER_ATTACHMENT | COPY_SRC` and a supported format.
-/// 2. After `queue.submit(...)`, call [`set_frame`](Self::set_frame) with that
-///    texture. wgpu serializes GPU work on the queue, so a later capture reads
-///    the last fully-submitted frame.
-/// 3. Recreate the texture on resize and `set_frame` the new one.
+/// 2. Publish that texture with [`set_frame`](Self::set_frame). It stores the
+///    texture *handle*, not a snapshot, so for a persistent render target you
+///    publish **once** — the loop keeps drawing into it and a capture reads the
+///    current contents. wgpu serializes GPU work on the queue, so the readback
+///    observes a complete frame.
+/// 3. Re-publish only when the handle changes: you recreate the texture (e.g.
+///    on resize) or render into a fresh texture each frame.
 ///
 /// ```rust,no_run
 /// # use miniscreenshot_wgpu::{wgpu, WgpuFrameTarget};
 /// # fn demo(device: wgpu::Device, queue: wgpu::Queue, frame: wgpu::Texture) {
 /// let target = WgpuFrameTarget::new(device, queue);
-/// // hand `target.clone()` to the MCP server, keep `target` in the loop:
-/// target.set_frame(frame); // after queue.submit(...)
+/// // hand `target.clone()` to the MCP server, then publish your render target:
+/// target.set_frame(frame); // once for a persistent texture; again on resize
 /// # }
 /// ```
 #[derive(Clone)]
@@ -313,9 +316,11 @@ impl WgpuFrameTarget {
         }
     }
 
-    /// Publish the latest fully-rendered frame. Call after `queue.submit(...)`
-    /// for the texture you just rendered (and again whenever you recreate it,
-    /// e.g. on resize). The texture must have `COPY_SRC` usage and a supported
+    /// Publish the texture a capture should read. Stores the texture *handle*,
+    /// so for a persistent render target call this **once** (the loop keeps
+    /// drawing into it); re-publish only when you recreate the texture, e.g. on
+    /// resize. Calling it every frame is harmless (a mutex lock + `Arc` bump)
+    /// but unnecessary. The texture must have `COPY_SRC` usage and a supported
     /// format (see [`capture`]).
     pub fn set_frame(&self, texture: wgpu::Texture) {
         *self.frame.lock().unwrap_or_else(|e| e.into_inner()) = Some(texture);

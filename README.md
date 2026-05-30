@@ -123,7 +123,7 @@ See the `softbuffer_winit_scene_screenshot` example for a complete demo.
 
 ```toml
 [dependencies]
-miniscreenshot-wgpu = "0.2"
+miniscreenshot-wgpu = "0.3"
 ```
 
 ```rust

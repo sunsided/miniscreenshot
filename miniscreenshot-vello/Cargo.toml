@@ -14,7 +14,7 @@ readme = "../README.md"
 miniscreenshot = { version = "0.2", path = "../miniscreenshot" }
 # Select the wgpu compatibility track through miniscreenshot-wgpu.
 # vello 0.9 builds against wgpu 29, so pin the wgpu-29 track here.
-miniscreenshot-wgpu = { version = "0.2", path = "../miniscreenshot-wgpu", default-features = false, features = ["wgpu-29"] }
+miniscreenshot-wgpu = { version = "0.3", path = "../miniscreenshot-wgpu", default-features = false, features = ["wgpu-29"] }
 vello = "0.9"
 
 [dev-dependencies]

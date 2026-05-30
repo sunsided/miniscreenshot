@@ -11,7 +11,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! miniscreenshot-vello = "0.2"
+//! miniscreenshot-vello = "0.3"
 //! ```
 //!
 //! Then access the re-exported crate:

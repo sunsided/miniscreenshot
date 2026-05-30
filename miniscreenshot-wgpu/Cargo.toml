@@ -1,6 +1,6 @@
 [package]
 name = "miniscreenshot-wgpu"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 description = "wgpu screenshot helper for the miniscreenshot ecosystem. Re-exports wgpu."
 authors = ["Markus Mayer <widemeadows@gmail.com>"]
@@ -11,7 +11,7 @@ categories = ["multimedia::images", "graphics"]
 readme = "../README.md"
 
 [features]
-default = ["wgpu-28"]
+default = ["wgpu-29"]
 wgpu-28 = ["dep:wgpu_28"]
 wgpu-29 = ["dep:wgpu_29"]
 
@@ -24,4 +24,4 @@ wgpu_29 = { package = "wgpu", version = "29", optional = true }
 pollster = "0.4"
 
 [package.metadata.docs.rs]
-features = ["wgpu-28"]
+features = ["wgpu-29"]

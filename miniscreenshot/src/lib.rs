@@ -23,7 +23,7 @@
 //! ```
 
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 // ── ImageFormat ─────────────────────────────────────────────────────────────
 
@@ -48,6 +48,15 @@ impl ImageFormat {
             "ppm" => Some(Self::Ppm),
             "pgm" => Some(Self::Pgm),
             _ => None,
+        }
+    }
+
+    /// The canonical lower-case file extension for this format (no leading dot).
+    pub fn extension(self) -> &'static str {
+        match self {
+            Self::Png => "png",
+            Self::Ppm => "ppm",
+            Self::Pgm => "pgm",
         }
     }
 }
@@ -216,6 +225,129 @@ impl Screenshot {
         file.write_all(&data).map_err(SaveError::Io)?;
         Ok(())
     }
+
+    /// Save into `dir` under an auto-generated, time-stamped PNG file name of
+    /// the form `screenshot-YYYYMMDD-HHMMSS-mmm.png`, returning the full path
+    /// that was written.
+    ///
+    /// Designed for the "screenshot key" path in apps and editors: one call,
+    /// no name bookkeeping, and the millisecond suffix avoids clobbering a
+    /// previous capture taken in the same second.
+    ///
+    /// ```rust,no_run
+    /// # use miniscreenshot::Screenshot;
+    /// let shot = Screenshot::from_rgba(1, 1, vec![255, 0, 0, 255]);
+    /// let path = shot.save_in_dir_timestamped("screenshots").unwrap();
+    /// println!("saved {}", path.display());
+    /// ```
+    pub fn save_in_dir_timestamped<P: AsRef<Path>>(&self, dir: P) -> Result<PathBuf, SaveError> {
+        self.save_in_dir_timestamped_as(dir, ImageFormat::Png)
+    }
+
+    /// Like [`save_in_dir_timestamped`](Self::save_in_dir_timestamped) but in
+    /// an explicitly chosen `format` (the file extension follows the format).
+    pub fn save_in_dir_timestamped_as<P: AsRef<Path>>(
+        &self,
+        dir: P,
+        format: ImageFormat,
+    ) -> Result<PathBuf, SaveError> {
+        let name = format!("screenshot-{}.{}", timestamp_stamp(), format.extension());
+        let path = dir.as_ref().join(name);
+        self.save_as(&path, format)?;
+        Ok(path)
+    }
+
+    /// Return a copy scaled down so its longest side is at most
+    /// `max_dimension` pixels, preserving aspect ratio via a box-average
+    /// filter. The image is returned unchanged (cloned) when it already fits,
+    /// when `max_dimension` is `0`, or when either dimension is `0`.
+    ///
+    /// Useful for thumbnails and for keeping inline image payloads small when
+    /// a screenshot is handed to a token-budgeted consumer (e.g. an MCP tool).
+    pub fn downscale_to(&self, max_dimension: u32) -> Screenshot {
+        let longest = self.width.max(self.height);
+        if max_dimension == 0 || self.width == 0 || self.height == 0 || longest <= max_dimension {
+            return self.clone();
+        }
+
+        let scale = f64::from(max_dimension) / f64::from(longest);
+        let dst_w = ((f64::from(self.width) * scale).round() as u32).max(1) as usize;
+        let dst_h = ((f64::from(self.height) * scale).round() as u32).max(1) as usize;
+        let src_w = self.width as usize;
+        let src_h = self.height as usize;
+
+        let mut out = vec![0u8; dst_w * dst_h * 4];
+        for dy in 0..dst_h {
+            // Source rows covered by this destination row (half-open, ≥1 wide).
+            let sy0 = dy * src_h / dst_h;
+            let sy1 = (((dy + 1) * src_h / dst_h).max(sy0 + 1)).min(src_h);
+            for dx in 0..dst_w {
+                let sx0 = dx * src_w / dst_w;
+                let sx1 = (((dx + 1) * src_w / dst_w).max(sx0 + 1)).min(src_w);
+
+                let (mut r, mut g, mut b, mut a, mut n) = (0u32, 0u32, 0u32, 0u32, 0u32);
+                for sy in sy0..sy1 {
+                    let row = sy * src_w * 4;
+                    for sx in sx0..sx1 {
+                        let i = row + sx * 4;
+                        r += u32::from(self.data[i]);
+                        g += u32::from(self.data[i + 1]);
+                        b += u32::from(self.data[i + 2]);
+                        a += u32::from(self.data[i + 3]);
+                        n += 1;
+                    }
+                }
+
+                let o = (dy * dst_w + dx) * 4;
+                out[o] = (r / n) as u8;
+                out[o + 1] = (g / n) as u8;
+                out[o + 2] = (b / n) as u8;
+                out[o + 3] = (a / n) as u8;
+            }
+        }
+
+        Screenshot {
+            width: dst_w as u32,
+            height: dst_h as u32,
+            data: out,
+        }
+    }
+}
+
+// ── Timestamp helpers ──────────────────────────────────────────────────────────
+
+/// Build a sortable `YYYYMMDD-HHMMSS-mmm` stamp from the current wall clock
+/// (UTC). Dependency-free: avoids pulling in `chrono`/`time` for a file name.
+fn timestamp_stamp() -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
+    let secs = now.as_secs();
+    let millis = now.subsec_millis();
+
+    let days = (secs / 86_400) as i64;
+    let secs_of_day = secs % 86_400;
+    let (year, month, day) = civil_from_days(days);
+    let hour = secs_of_day / 3600;
+    let minute = (secs_of_day % 3600) / 60;
+    let second = secs_of_day % 60;
+
+    format!("{year:04}{month:02}{day:02}-{hour:02}{minute:02}{second:02}-{millis:03}")
+}
+
+/// Convert a count of days since the Unix epoch (1970-01-01) into a
+/// proleptic-Gregorian `(year, month, day)`. Howard Hinnant's `civil_from_days`.
+fn civil_from_days(z: i64) -> (i64, u32, u32) {
+    let z = z + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = (z - era * 146_097) as u64; // day of era, [0, 146096]
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365; // [0, 399]
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // day of year, [0, 365]
+    let mp = (5 * doy + 2) / 153; // month index, [0, 11]
+    let day = (doy - (153 * mp + 2) / 5 + 1) as u32; // [1, 31]
+    let month = if mp < 10 { mp + 3 } else { mp - 9 } as u32; // [1, 12]
+    (if month <= 2 { y + 1 } else { y }, month, day)
 }
 
 // ── Capture trait ────────────────────────────────────────────────────────────
@@ -600,5 +732,82 @@ mod tests {
         let bytes = std::fs::read(&path).unwrap();
         // PNG magic
         assert_eq!(&bytes[..8], &[137, 80, 78, 71, 13, 10, 26, 10]);
+    }
+
+    // ── Timestamped save ───────────────────────────────────────────────────────
+
+    #[test]
+    fn extension_matches_from_extension() {
+        for fmt in [ImageFormat::Png, ImageFormat::Ppm, ImageFormat::Pgm] {
+            assert_eq!(ImageFormat::from_extension(fmt.extension()), Some(fmt));
+        }
+    }
+
+    #[test]
+    fn save_in_dir_timestamped_writes_named_png() {
+        let shot = sample_2x2();
+        let dir = tempfile::tempdir().unwrap();
+        let path = shot.save_in_dir_timestamped(dir.path()).unwrap();
+
+        // File exists, is a PNG, and lives in the requested dir.
+        assert_eq!(path.parent().unwrap(), dir.path());
+        let bytes = std::fs::read(&path).unwrap();
+        assert_eq!(&bytes[..8], &[137, 80, 78, 71, 13, 10, 26, 10]);
+
+        // Name shape: screenshot-YYYYMMDD-HHMMSS-mmm.png
+        let name = path.file_name().unwrap().to_str().unwrap();
+        assert!(name.starts_with("screenshot-"), "got {name}");
+        assert!(name.ends_with(".png"), "got {name}");
+        let stamp = name
+            .trim_start_matches("screenshot-")
+            .trim_end_matches(".png");
+        let (date, rest) = stamp.split_once('-').unwrap();
+        let (time, millis) = rest.split_once('-').unwrap();
+        assert_eq!(date.len(), 8, "date {date}");
+        assert_eq!(time.len(), 6, "time {time}");
+        assert_eq!(millis.len(), 3, "millis {millis}");
+        assert!(stamp.bytes().all(|b| b.is_ascii_digit() || b == b'-'));
+    }
+
+    #[test]
+    fn civil_from_days_known_dates() {
+        assert_eq!(civil_from_days(0), (1970, 1, 1)); // Unix epoch
+        assert_eq!(civil_from_days(31), (1970, 2, 1));
+        assert_eq!(civil_from_days(18_993), (2022, 1, 1));
+    }
+
+    // ── Downscale ──────────────────────────────────────────────────────────────
+
+    #[test]
+    fn downscale_noop_when_within_bounds() {
+        let shot = sample_2x2();
+        let small = shot.downscale_to(4);
+        assert_eq!((small.width(), small.height()), (2, 2));
+        assert_eq!(small.data(), shot.data());
+    }
+
+    #[test]
+    fn downscale_zero_is_noop() {
+        let shot = sample_2x2();
+        let same = shot.downscale_to(0);
+        assert_eq!((same.width(), same.height()), (2, 2));
+    }
+
+    #[test]
+    fn downscale_preserves_aspect_ratio() {
+        // 4×2 image → longest side capped at 2 → 2×1.
+        let data = vec![0u8; 4 * 2 * 4];
+        let shot = Screenshot::from_rgba(4, 2, data);
+        let small = shot.downscale_to(2);
+        assert_eq!((small.width(), small.height()), (2, 1));
+    }
+
+    #[test]
+    fn downscale_box_average() {
+        // 2×1: black + white → 1×1 should be the average (127).
+        let shot = Screenshot::from_rgba(2, 1, vec![0, 0, 0, 0, 254, 254, 254, 254]);
+        let small = shot.downscale_to(1);
+        assert_eq!((small.width(), small.height()), (1, 1));
+        assert_eq!(small.data(), &[127, 127, 127, 127]);
     }
 }

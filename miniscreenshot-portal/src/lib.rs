@@ -171,9 +171,9 @@ impl PortalCapture {
         Self
     }
 
-    /// Blocking variant of [`connect_async`].
+    /// Blocking variant of [`Self::connect_async`].
     ///
-    /// Internally builds a current-thread runtime (tokio or async-std,
+    /// Internally builds a current-thread runtime (tokio or async-io,
     /// matching the selected feature). Not suitable for calling from
     /// inside an existing runtime — use `connect_async` there.
     #[cfg(feature = "blocking")]
@@ -194,13 +194,13 @@ impl PortalCapture {
         self.do_capture(false).await
     }
 
-    /// Blocking variant of [`capture_interactive_async`].
+    /// Blocking variant of [`Self::capture_interactive_async`].
     #[cfg(feature = "blocking")]
     pub fn capture_interactive(&mut self) -> Result<Screenshot, PortalCaptureError> {
         block_on(self.capture_interactive_async())
     }
 
-    /// Blocking variant of [`capture_silent_async`].
+    /// Blocking variant of [`Self::capture_silent_async`].
     #[cfg(feature = "blocking")]
     pub fn capture_silent(&mut self) -> Result<Screenshot, PortalCaptureError> {
         block_on(self.capture_silent_async())

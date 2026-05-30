@@ -57,6 +57,10 @@ let shot = Screenshot::from_rgba(1, 1, data);
 // Save — format inferred from extension (.png / .ppm / .pgm)
 shot.save("screenshot.png").unwrap();
 
+// Or let a "screenshot key" handler name the file for you:
+// writes screenshots/screenshot-YYYYMMDD-HHMMSS-mmm.png, returns the path.
+let path = shot.save_in_dir_timestamped("screenshots").unwrap();
+
 // Or encode to bytes explicitly
 let png_bytes: Vec<u8> = shot.encode_png().unwrap();
 let ppm_bytes: Vec<u8> = shot.encode_ppm();   // lossless, trivial format
@@ -133,6 +137,13 @@ use miniscreenshot_wgpu::{wgpu, capture};
 let shot = capture(&device, &queue, &texture).unwrap();
 shot.save("screenshot.png").unwrap();
 ```
+
+> **Capturing a frame you present:** the swapchain/surface texture is acquired
+> without `COPY_SRC` and cannot be captured directly. Render your scene into an
+> offscreen texture created with `RENDER_ATTACHMENT | COPY_SRC`, `capture` that,
+> then blit it to the surface to present. See the `wgpu_scene_screenshot`
+> example. From an async render loop, wrap the (blocking) `capture` call in
+> `tokio::task::spawn_blocking`.
 
 ### Wayland system screenshot
 
@@ -348,7 +359,7 @@ miniscreenshot-softbuffer = { version = "0.2", features = ["winit"] }
 ### Portal features
 
 `miniscreenshot-portal` exposes runtime and API-surface features. Enabling
-a runtime (`tokio` or `async-std`) automatically enables the async API surface.
+a runtime (`tokio` or `async-io`) automatically enables the async API surface.
 
 ```toml
 # Default: tokio runtime + blocking API + async API
@@ -357,11 +368,11 @@ miniscreenshot-portal = "0.2"
 # Async-only with tokio (no blocking convenience methods)
 miniscreenshot-portal = { version = "0.2", default-features = false, features = ["tokio"] }
 
-# Async-only with async-std
-miniscreenshot-portal = { version = "0.2", default-features = false, features = ["async-std"] }
+# Async-only with async-io
+miniscreenshot-portal = { version = "0.2", default-features = false, features = ["async-io"] }
 ```
 
-The `tokio` and `async-std` runtime features are mutually exclusive. The
+The `tokio` and `async-io` runtime features are mutually exclusive. The
 `blocking` API-surface feature is independent. The `async` API surface is
 implied by whichever runtime you select, but can also be enabled standalone
 if you want to provide your own executor.

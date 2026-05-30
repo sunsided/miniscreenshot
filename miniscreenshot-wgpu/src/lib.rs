@@ -43,6 +43,8 @@ pub use wgpu_29 as wgpu;
 
 pub use miniscreenshot::{Capture, CaptureError, Screenshot};
 
+use std::sync::{Arc, Mutex};
+
 /// Errors that can occur while capturing a GPU texture.
 #[derive(Debug)]
 pub enum WgpuCaptureError {
@@ -261,6 +263,99 @@ pub fn capture(
     staging_buffer.unmap();
 
     Ok(Screenshot::from_rgba(width, height, rgba))
+}
+
+/// A `Send + 'static` capture source that always reads the **latest frame your
+/// application published** — built for handing to a long-lived service such as
+/// an embedded MCP screenshot server, so a coding agent can grab your game's
+/// current frame (not the desktop) on demand.
+///
+/// Unlike [`WgpuCapture`], which borrows the device/queue/texture, this type
+/// owns clones of the (cheaply cloneable) wgpu handles and an interior,
+/// swappable "current frame" texture, so it satisfies `Capture + Send +
+/// 'static`.
+///
+/// # Usage
+///
+/// The type is [`Clone`]; keep one clone in your render loop and hand another
+/// to the server. Each clone shares the same published-frame slot.
+///
+/// 1. Render your frame into an offscreen texture created with
+///    `RENDER_ATTACHMENT | COPY_SRC` and a supported format.
+/// 2. After `queue.submit(...)`, call [`set_frame`](Self::set_frame) with that
+///    texture. wgpu serializes GPU work on the queue, so a later capture reads
+///    the last fully-submitted frame.
+/// 3. Recreate the texture on resize and `set_frame` the new one.
+///
+/// ```rust,no_run
+/// # use miniscreenshot_wgpu::{wgpu, WgpuFrameTarget};
+/// # fn demo(device: wgpu::Device, queue: wgpu::Queue, frame: wgpu::Texture) {
+/// let target = WgpuFrameTarget::new(device, queue);
+/// // hand `target.clone()` to the MCP server, keep `target` in the loop:
+/// target.set_frame(frame); // after queue.submit(...)
+/// # }
+/// ```
+#[derive(Clone)]
+pub struct WgpuFrameTarget {
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    frame: Arc<Mutex<Option<wgpu::Texture>>>,
+}
+
+impl WgpuFrameTarget {
+    /// Create a frame target from clones of your wgpu device and queue. No
+    /// frame is published until the first [`set_frame`](Self::set_frame).
+    pub fn new(device: wgpu::Device, queue: wgpu::Queue) -> Self {
+        Self {
+            device,
+            queue,
+            frame: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    /// Publish the latest fully-rendered frame. Call after `queue.submit(...)`
+    /// for the texture you just rendered (and again whenever you recreate it,
+    /// e.g. on resize). The texture must have `COPY_SRC` usage and a supported
+    /// format (see [`capture`]).
+    pub fn set_frame(&self, texture: wgpu::Texture) {
+        *self.frame.lock().unwrap_or_else(|e| e.into_inner()) = Some(texture);
+    }
+
+    /// Drop the currently published frame (e.g. while the window is minimized).
+    /// Captures then fail until the next [`set_frame`](Self::set_frame).
+    pub fn clear(&self) {
+        *self.frame.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
+    /// Whether a frame has been published yet.
+    pub fn has_frame(&self) -> bool {
+        self.frame
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_some()
+    }
+}
+
+impl Capture for WgpuFrameTarget {
+    type Error = CaptureError;
+
+    fn capture(&mut self) -> Result<Screenshot, CaptureError> {
+        // Clone the handle out and release the lock before the (blocking)
+        // readback, so the render loop can keep publishing frames meanwhile.
+        let texture = self
+            .frame
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+            .ok_or_else(|| {
+                // Runtime state, not an unsupported operation: no frame published yet.
+                CaptureError::new(
+                    miniscreenshot::CaptureErrorKind::Other,
+                    "no frame has been published yet (call WgpuFrameTarget::set_frame)",
+                )
+            })?;
+        capture(&self.device, &self.queue, &texture).map_err(CaptureError::from)
+    }
 }
 
 /// Round `width * 4` (bytes per row in RGBA8) up to the next multiple of

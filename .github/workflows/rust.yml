@@ -14,7 +14,7 @@ jobs:
     name: Format check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -27,7 +27,7 @@ jobs:
     needs: fmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -63,7 +63,7 @@ jobs:
           - { name: mcp-wgpu-game, crate: miniscreenshot-mcp, example: wgpu_game_mcp_server, features: "", build-only: true }
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libxcb1-dev libfontconfig1-dev libfreetype-dev
       - name: Install Rust
@@ -93,7 +93,7 @@ jobs:
       matrix:
         toolchain: [stable, 1.92.0]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libxcb1-dev libfontconfig1-dev libfreetype-dev
       - name: Install Rust
@@ -114,7 +114,7 @@ jobs:
     needs: [fmt, baseline-clippy]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libxcb1-dev libfontconfig1-dev libfreetype-dev
       - name: Install Rust
@@ -135,7 +135,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable

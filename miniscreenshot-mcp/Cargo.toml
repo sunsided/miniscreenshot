@@ -13,7 +13,7 @@ readme = "../README.md"
 [dependencies]
 miniscreenshot = { version = "0.3", path = "../miniscreenshot" }
 
-rmcp = { version = "1.7", default-features = false, features = [
+rmcp = { version = "2.2", default-features = false, features = [
     "server",
     "macros",
     "schemars",

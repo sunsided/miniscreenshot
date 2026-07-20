@@ -18,4 +18,4 @@ miniscreenshot-wgpu = { version = "0.3", path = "../miniscreenshot-wgpu", defaul
 vello = "0.9"
 
 [dev-dependencies]
-pollster = "0.4"
+pollster = "1.0"

@@ -13,7 +13,7 @@ readme = "../README.md"
 [dependencies]
 miniscreenshot = { version = "0.3", path = "../miniscreenshot" }
 
-rmcp = { version = "1.7", default-features = false, features = [
+rmcp = { version = "3.1", default-features = false, features = [
     "server",
     "macros",
     "schemars",
@@ -25,7 +25,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "net
 serde = { version = "1", features = ["derive"] }
 schemars = "1"
 thiserror = "2"
-base64 = "0.22"
+base64 = "0.23"
 
 [dev-dependencies]
 miniscreenshot-desktop = { version = "0.3", path = "../miniscreenshot-desktop" }

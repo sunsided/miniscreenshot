@@ -366,7 +366,7 @@ fn convert_to_rgba(
     match (depth, bits_per_pixel) {
         (24..=32, 32) => {
             let mut rgba = Vec::with_capacity(width as usize * height as usize * 4);
-            for chunk in raw.chunks_exact(4) {
+            for chunk in raw.as_chunks::<4>().0 {
                 rgba.extend_from_slice(&[chunk[2], chunk[1], chunk[0], 255]);
             }
             Some(Screenshot::from_rgba(width, height, rgba))
@@ -382,7 +382,7 @@ fn convert_to_rgba(
                     return None;
                 }
                 let row_data = &raw[row_start..row_end];
-                for chunk in row_data.chunks_exact(3) {
+                for chunk in row_data.as_chunks::<3>().0 {
                     rgba.extend_from_slice(&[chunk[2], chunk[1], chunk[0], 255]);
                 }
             }

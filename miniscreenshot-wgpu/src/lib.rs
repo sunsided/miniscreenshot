@@ -278,7 +278,7 @@ pub fn capture(
         let row_end = row_start + width as usize * 4;
         let row = &raw[row_start..row_end];
         if is_bgra {
-            for pixel in row.chunks_exact(4) {
+            for pixel in row.as_chunks::<4>().0 {
                 rgba.push(pixel[2]); // R  ← was B
                 rgba.push(pixel[1]); // G
                 rgba.push(pixel[0]); // B  ← was R

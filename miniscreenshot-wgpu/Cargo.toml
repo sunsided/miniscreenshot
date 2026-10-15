@@ -2,6 +2,7 @@
 name = "miniscreenshot-wgpu"
 version = "0.3.0"
 edition = "2021"
+rust-version.workspace = true
 description = "wgpu screenshot helper for the miniscreenshot ecosystem. Re-exports wgpu."
 authors = ["Markus Mayer <widemeadows@gmail.com>"]
 license = "EUPL-1.2 OR MIT OR Apache-2.0"

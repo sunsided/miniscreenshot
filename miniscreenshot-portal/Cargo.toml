@@ -1,6 +1,6 @@
 [package]
 name = "miniscreenshot-portal"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 rust-version.workspace = true
 description = "XDG Desktop Portal (ashpd) screenshot helper for the miniscreenshot ecosystem. Works on GNOME, KDE, and wlroots-based compositors, and inside Flatpak/Snap sandboxes."

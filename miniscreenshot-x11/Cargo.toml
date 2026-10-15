@@ -1,6 +1,6 @@
 [package]
 name = "miniscreenshot-x11"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 rust-version.workspace = true
 description = "X11 (XGetImage / MIT-SHM) screenshot helper for the miniscreenshot ecosystem."

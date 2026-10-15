@@ -1,6 +1,6 @@
 [package]
 name = "miniscreenshot"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 rust-version.workspace = true
 description = "Core screenshot types: PNG/PPM/PGM encoding and file-saving utilities."

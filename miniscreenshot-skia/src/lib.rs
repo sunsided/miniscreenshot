@@ -7,7 +7,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! miniscreenshot-skia = "0.1"
+//! miniscreenshot-skia = "0.3"
 //! ```
 //!
 //! Then access the re-exported crate:

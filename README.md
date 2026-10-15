@@ -19,7 +19,7 @@ applications or the entire desktop.
 | [`miniscreenshot-vello`](https://crates.io/crates/miniscreenshot-vello) | [`vello`](https://crates.io/crates/vello) re-export + pixel readback support |
 | [`miniscreenshot-minifb`](https://crates.io/crates/miniscreenshot-minifb) | [`minifb`](https://crates.io/crates/minifb) re-export + pixel buffer screenshot helper |
 | [`miniscreenshot-desktop`](https://crates.io/crates/miniscreenshot-desktop) | **Umbrella** — auto-selects Wayland → X11 → Portal for "just take a screenshot" |
-| [`miniscreenshot-mcp`](miniscreenshot-mcp/) | **MCP server** — serves a `screenshot` tool over the Model Context Protocol (streamable HTTP) |
+| [`miniscreenshot-mcp`](https://crates.io/crates/miniscreenshot-mcp) | **MCP server** — serves a `screenshot` tool over the Model Context Protocol (streamable HTTP) |
 
 ---
 
@@ -550,5 +550,5 @@ task examples
 
 ## License
 
-Licensed under either of [Apache License 2.0](LICENSE-APACHE) or
-[MIT License](LICENSE-MIT) at your option.
+Licensed under any of the European Union Public Licence 1.2, the MIT License,
+or the Apache License 2.0, at your option (`EUPL-1.2 OR MIT OR Apache-2.0`).

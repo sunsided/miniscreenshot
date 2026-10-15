@@ -9,7 +9,7 @@ license = "EUPL-1.2 OR MIT OR Apache-2.0"
 repository = "https://github.com/sunsided/miniscreenshot"
 keywords = ["screenshot", "xdg", "portal", "ashpd", "wayland"]
 categories = ["multimedia::images", "graphics", "os::linux-apis"]
-readme = "../README.md"
+readme = "README.md"
 
 [features]
 # Default: tokio runtime + blocking API + async API (drop-in replacement shape).

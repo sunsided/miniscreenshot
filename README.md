@@ -550,5 +550,6 @@ task examples
 
 ## License
 
-Licensed under any of the European Union Public Licence 1.2, the MIT License,
-or the Apache License 2.0, at your option (`EUPL-1.2 OR MIT OR Apache-2.0`).
+Licensed under any of the [European Union Public Licence 1.2](LICENSE-EUPL),
+the [MIT License](LICENSE-MIT), or the [Apache License 2.0](LICENSE-APACHE),
+at your option (`EUPL-1.2 OR MIT OR Apache-2.0`).

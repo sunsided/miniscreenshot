@@ -1,6 +1,6 @@
 [package]
 name = "miniscreenshot-wayland"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 rust-version.workspace = true
 description = "Wayland (wlr-screencopy-v1) screenshot helper for the miniscreenshot ecosystem."

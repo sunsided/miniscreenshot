@@ -170,7 +170,7 @@ mod tests {
         let shot = capture(&pixels, 2, 2).unwrap();
         assert_eq!(shot.width(), 2);
         assert_eq!(shot.height(), 2);
-        for chunk in shot.data().chunks_exact(4) {
+        for chunk in shot.data().as_chunks::<4>().0 {
             assert_eq!(chunk, &[255, 0, 0, 255]);
         }
     }

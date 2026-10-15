@@ -13,3 +13,6 @@ members = [
     "miniscreenshot-mcp",
 ]
 resolver = "3"
+
+[workspace.package]
+rust-version = "1.90"

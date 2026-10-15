@@ -103,7 +103,9 @@ impl Screenshot {
             "RGB8 data must be exactly width × height × 3 bytes"
         );
         let rgba: Vec<u8> = data
-            .chunks_exact(3)
+            .as_chunks::<3>()
+            .0
+            .iter()
             .flat_map(|rgb| [rgb[0], rgb[1], rgb[2], 255u8])
             .collect();
         Self {
@@ -162,7 +164,7 @@ impl Screenshot {
         let mut buf =
             Vec::with_capacity(header.len() + (self.width as usize) * (self.height as usize) * 3);
         buf.extend_from_slice(header.as_bytes());
-        for pixel in self.data.chunks_exact(4) {
+        for pixel in self.data.as_chunks::<4>().0 {
             buf.push(pixel[0]); // R
             buf.push(pixel[1]); // G
             buf.push(pixel[2]); // B
@@ -179,7 +181,7 @@ impl Screenshot {
         let mut buf =
             Vec::with_capacity(header.len() + (self.width as usize) * (self.height as usize));
         buf.extend_from_slice(header.as_bytes());
-        for pixel in self.data.chunks_exact(4) {
+        for pixel in self.data.as_chunks::<4>().0 {
             let gray =
                 (0.299 * pixel[0] as f32 + 0.587 * pixel[1] as f32 + 0.114 * pixel[2] as f32) as u8;
             buf.push(gray);

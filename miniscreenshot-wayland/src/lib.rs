@@ -466,13 +466,13 @@ fn convert_to_rgba(
         match format {
             wl_shm::Format::Argb8888 => {
                 // Little-endian u32 layout: [B, G, R, A]
-                for p in row_data.chunks_exact(4) {
+                for p in row_data.as_chunks::<4>().0 {
                     rgba.extend_from_slice(&[p[2], p[1], p[0], p[3]]);
                 }
             }
             wl_shm::Format::Xrgb8888 => {
                 // Little-endian u32 layout: [B, G, R, X]
-                for p in row_data.chunks_exact(4) {
+                for p in row_data.as_chunks::<4>().0 {
                     rgba.extend_from_slice(&[p[2], p[1], p[0], 255]);
                 }
             }

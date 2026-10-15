@@ -18,6 +18,7 @@
 //!
 //! - `wgpu-28`
 //! - `wgpu-29`
+//! - `wgpu-30`
 //!
 //! # How it works
 //!
@@ -27,10 +28,16 @@
 //! 4. The staging buffer is mapped, row padding is stripped, and the pixel
 //!    data is converted to RGBA8 if necessary.
 
-#[cfg(all(feature = "wgpu-28", feature = "wgpu-29"))]
-compile_error!("features `wgpu-28` and `wgpu-29` are mutually exclusive; enable exactly one");
-#[cfg(not(any(feature = "wgpu-28", feature = "wgpu-29")))]
-compile_error!("one of `wgpu-28` or `wgpu-29` must be enabled for miniscreenshot-wgpu");
+#[cfg(any(
+    all(feature = "wgpu-28", feature = "wgpu-29"),
+    all(feature = "wgpu-28", feature = "wgpu-30"),
+    all(feature = "wgpu-29", feature = "wgpu-30"),
+))]
+compile_error!(
+    "features `wgpu-28`, `wgpu-29` and `wgpu-30` are mutually exclusive; enable exactly one"
+);
+#[cfg(not(any(feature = "wgpu-28", feature = "wgpu-29", feature = "wgpu-30")))]
+compile_error!("one of `wgpu-28`, `wgpu-29` or `wgpu-30` must be enabled for miniscreenshot-wgpu");
 
 /// Re-export of the `wgpu` crate.
 ///
@@ -40,6 +47,8 @@ compile_error!("one of `wgpu-28` or `wgpu-29` must be enabled for miniscreenshot
 pub use wgpu_28 as wgpu;
 #[cfg(feature = "wgpu-29")]
 pub use wgpu_29 as wgpu;
+#[cfg(feature = "wgpu-30")]
+pub use wgpu_30 as wgpu;
 
 pub use miniscreenshot::{Capture, CaptureError, Screenshot};
 
@@ -59,6 +68,10 @@ pub enum WgpuCaptureError {
 
     /// The device poll failed.
     PollFailed(wgpu::PollError),
+
+    /// The mapped staging buffer range could not be accessed.
+    #[cfg(feature = "wgpu-30")]
+    MapRangeFailed(wgpu::MapRangeError),
 }
 
 impl std::fmt::Display for WgpuCaptureError {
@@ -69,6 +82,8 @@ impl std::fmt::Display for WgpuCaptureError {
             }
             Self::MapFailed(e) => write!(f, "staging buffer map failed: {e}"),
             Self::PollFailed(e) => write!(f, "device poll failed: {e}"),
+            #[cfg(feature = "wgpu-30")]
+            Self::MapRangeFailed(e) => write!(f, "staging buffer range access failed: {e}"),
         }
     }
 }
@@ -78,6 +93,8 @@ impl std::error::Error for WgpuCaptureError {
         match self {
             Self::MapFailed(e) => Some(e),
             Self::PollFailed(e) => Some(e),
+            #[cfg(feature = "wgpu-30")]
+            Self::MapRangeFailed(e) => Some(e),
             _ => None,
         }
     }
@@ -101,6 +118,12 @@ impl From<WgpuCaptureError> for CaptureError {
                 format!("device poll failed: {e}"),
             )
             .with_source(WgpuCaptureError::PollFailed(e)),
+            #[cfg(feature = "wgpu-30")]
+            WgpuCaptureError::MapRangeFailed(e) => CaptureError::new(
+                miniscreenshot::CaptureErrorKind::Backend,
+                format!("staging buffer range access failed: {e}"),
+            )
+            .with_source(WgpuCaptureError::MapRangeFailed(e)),
         }
     }
 }
@@ -241,7 +264,13 @@ pub fn capture(
         .map_err(WgpuCaptureError::MapFailed)?;
 
     // Strip row padding and optionally swap BGRA → RGBA.
+    #[cfg(not(feature = "wgpu-30"))]
     let mapped = buffer_slice.get_mapped_range();
+    // wgpu 30 made range access fallible.
+    #[cfg(feature = "wgpu-30")]
+    let mapped = buffer_slice
+        .get_mapped_range()
+        .map_err(WgpuCaptureError::MapRangeFailed)?;
     let raw: &[u8] = &mapped;
     let mut rgba = Vec::with_capacity(width as usize * height as usize * 4);
     for row_idx in 0..height as usize {
@@ -249,7 +278,7 @@ pub fn capture(
         let row_end = row_start + width as usize * 4;
         let row = &raw[row_start..row_end];
         if is_bgra {
-            for pixel in row.chunks_exact(4) {
+            for pixel in row.as_chunks::<4>().0 {
                 rgba.push(pixel[2]); // R  ← was B
                 rgba.push(pixel[1]); // G
                 rgba.push(pixel[0]); // B  ← was R

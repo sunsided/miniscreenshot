@@ -219,7 +219,7 @@ mod tests {
         assert_eq!(shot.width(), 2);
         assert_eq!(shot.height(), 2);
         // Every pixel should be [R=255, G=0, B=0, A=255]
-        for chunk in shot.data().chunks_exact(4) {
+        for chunk in shot.data().as_chunks::<4>().0 {
             assert_eq!(chunk, &[255, 0, 0, 255]);
         }
     }

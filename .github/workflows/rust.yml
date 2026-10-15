@@ -49,6 +49,7 @@ jobs:
           - { name: softbuffer+winit, crate: miniscreenshot-softbuffer, example: softbuffer_winit_scene_screenshot, features: "--features winit" }
           - { name: wgpu-28, crate: miniscreenshot-wgpu, example: wgpu_scene_screenshot, features: "--no-default-features --features wgpu-28", run-crate-tests: true }
           - { name: wgpu-29, crate: miniscreenshot-wgpu, example: wgpu_scene_screenshot, features: "--features wgpu-29", run-crate-tests: true }
+          - { name: wgpu-30, crate: miniscreenshot-wgpu, example: wgpu_scene_screenshot, features: "--no-default-features --features wgpu-30", run-crate-tests: true }
           - { name: wayland, crate: miniscreenshot-wayland, example: wayland_scene_screenshot, features: "" }
           - { name: x11, crate: miniscreenshot-x11, example: x11_scene_screenshot, features: "" }
           - { name: skia, crate: miniscreenshot-skia, example: skia_scene_screenshot, features: "" }
@@ -102,8 +103,8 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
       - name: Cache Cargo artifacts
         uses: Swatinem/rust-cache@v2
-      # Default features only: enabling all features would turn on both
-      # wgpu-28 and wgpu-29, which the wgpu crate rejects with compile_error!.
+      # Default features only: enabling all features would turn on
+      # the mutually exclusive wgpu-28/29/30 tracks, which the crate rejects with compile_error!.
       - name: Unit + integration tests
         run: cargo test --workspace --verbose
       - name: Doc tests

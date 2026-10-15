@@ -18,20 +18,28 @@ fn fs() -> @location(0) vec4<f32> {
 }
 "#;
 
-#[cfg(all(feature = "wgpu-28", feature = "wgpu-29"))]
-compile_error!("features `wgpu-28` and `wgpu-29` are mutually exclusive; enable exactly one");
-#[cfg(not(any(feature = "wgpu-28", feature = "wgpu-29")))]
-compile_error!("one of `wgpu-28` or `wgpu-29` must be enabled for this example");
+#[cfg(any(
+    all(feature = "wgpu-28", feature = "wgpu-29"),
+    all(feature = "wgpu-28", feature = "wgpu-30"),
+    all(feature = "wgpu-29", feature = "wgpu-30"),
+))]
+compile_error!(
+    "features `wgpu-28`, `wgpu-29` and `wgpu-30` are mutually exclusive; enable exactly one"
+);
+#[cfg(not(any(feature = "wgpu-28", feature = "wgpu-29", feature = "wgpu-30")))]
+compile_error!("one of `wgpu-28`, `wgpu-29` or `wgpu-30` must be enabled for this example");
 
 fn main() {
     #[cfg(feature = "wgpu-28")]
     let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
-    #[cfg(feature = "wgpu-29")]
+    #[cfg(any(feature = "wgpu-29", feature = "wgpu-30"))]
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::LowPower,
         force_fallback_adapter: false,
         compatible_surface: None,
+        #[cfg(feature = "wgpu-30")]
+        apply_limit_buckets: false,
     }))
     .expect("failed to request adapter");
 

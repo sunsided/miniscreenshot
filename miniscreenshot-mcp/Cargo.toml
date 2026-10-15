@@ -7,7 +7,7 @@ description = "MCP server exposing miniscreenshot Capture over streamable HTTP."
 authors = ["Markus Mayer <widemeadows@gmail.com>"]
 license = "EUPL-1.2 OR MIT OR Apache-2.0"
 repository = "https://github.com/sunsided/miniscreenshot"
-keywords = ["screenshot", "mcp", "model-context-protocol"]
+keywords = ["screenshot", "mcp", "mcp-server"]
 categories = ["multimedia::images", "graphics"]
 readme = "../README.md"
 
